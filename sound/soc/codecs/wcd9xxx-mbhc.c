@@ -3470,25 +3470,21 @@ static int wcd9xxx_get_button_mask(const int btn)
 	int mask = 0;
 	switch (btn) {
 	case 0:
+	case 1:
 		mask = SND_JACK_BTN_0;
 		break;
-	case 1:
-		mask = SND_JACK_BTN_1;
-		break;
 	case 2:
-		mask = SND_JACK_BTN_2;
+		mask = SND_JACK_BTN_5;
 		break;
 	case 3:
-		mask = SND_JACK_BTN_3;
+		mask = SND_JACK_BTN_0;
 		break;
 	case 4:
 		mask = SND_JACK_BTN_4;
 		break;
 	case 5:
-		mask = SND_JACK_BTN_5;
-		break;
 	case 6:
-		mask = SND_JACK_BTN_6;
+		mask = SND_JACK_BTN_5;
 		break;
 	case 7:
 		mask = SND_JACK_BTN_7;
@@ -5090,37 +5086,19 @@ int wcd9xxx_mbhc_init(struct wcd9xxx_mbhc *mbhc, struct wcd9xxx_resmgr *resmgr,
 //Gionee huangzhuolin 20140626 add for U2 Multi-function headset CR01296447 begin
 #ifdef CONFIG_GN_Q_BSP_AUDIO_MBHC_CALIBRATION
 		ret = snd_jack_set_key(mbhc->button_jack.jack,
-				   SND_JACK_BTN_1,
+				   SND_JACK_BTN_5,
 				   KEY_VOLUMEUP);
 		if (ret) {
-			pr_err("%s: Failed to set code for btn-1\n",
+			pr_err("%s: Failed to set code for btn-5\n",
 				   __func__);
 			return ret;
 		}
 
 		ret = snd_jack_set_key(mbhc->button_jack.jack,
-				   SND_JACK_BTN_2,
+				   SND_JACK_BTN_7,
 				   KEY_VOLUMEDOWN);
 		if (ret) {
-			pr_err("%s: Failed to set code for btn-2\n",
-				   __func__);
-			return ret;
-		}
-
-		ret = snd_jack_set_key(mbhc->button_jack.jack,
-				   SND_JACK_BTN_3,
-				   KEY_NEXTSONG);
-		if (ret){
-			pr_err("%s: Failed to set code for btn-3\n",
-				   __func__);
-			return ret;
-		}
-
-		ret = snd_jack_set_key(mbhc->button_jack.jack,
-				   SND_JACK_BTN_4,
-				   KEY_PREVIOUSSONG);
-		if (ret) {
-			pr_err("%s: Failed to set code for btn-4\n",
+			pr_err("%s: Failed to set code for btn-7\n",
 				   __func__);
 			return ret;
 		}
