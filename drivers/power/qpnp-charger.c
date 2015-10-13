@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  */
-#define pr_fmt(fmt)	"%s: " fmt, __func__
+#define pr_fmt(fmt)	"CHG: %s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -30,7 +30,11 @@
 #include <linux/regulator/machine.h>
 #include <linux/of_batterydata.h>
 #include <linux/qpnp-revid.h>
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+#include <linux/alarmtimer.h>
+#else
 #include <linux/android_alarm.h>
+#endif
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -1380,7 +1384,7 @@ qpnp_chg_vbatdet_lo_irq_handler(int irq, void *_chip)
 	if (rc)
 		pr_err("failed to read chg_sts rc=%d\n", rc);
 
-	pr_debug("chg_done chg_sts: 0x%x triggered\n", chg_sts);
+	pr_info("chg_done chg_sts: 0x%x triggered\n", chg_sts);
 	if (!chip->charging_disabled && (chg_sts & FAST_CHG_ON_IRQ)) {
 		schedule_delayed_work(&chip->eoc_work,
 			msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
@@ -1414,7 +1418,7 @@ qpnp_chg_usb_chg_gone_irq_handler(int irq, void *_chip)
 	if (rc)
 		pr_err("failed to read usb_chgpth_sts rc=%d\n", rc);
 
-	pr_debug("chg_gone triggered\n");
+	pr_info("chg_gone triggered\n");
 	if ((qpnp_chg_is_usb_chg_plugged_in(chip)
 			|| qpnp_chg_is_dc_chg_plugged_in(chip))
 			&& (usb_sts & CHG_GONE_IRQ)) {
@@ -1716,7 +1720,7 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 
 	usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
 	host_mode = qpnp_chg_is_otg_en_set(chip);
-	pr_debug("usbin-valid triggered: %d host_mode: %d\n",
+	pr_info("usbin-valid triggered: %d host_mode: %d\n",
 		usb_present, host_mode);
 
 	/* In host mode notifications cmoe from USB supply */
@@ -1841,7 +1845,7 @@ qpnp_chg_bat_if_batt_temp_irq_handler(int irq, void *_chip)
 	int batt_temp_good, batt_present, rc;
 
 	batt_temp_good = qpnp_chg_is_batt_temp_ok(chip);
-	pr_debug("batt-temp triggered: %d\n", batt_temp_good);
+	pr_info("batt-temp triggered: %d\n", batt_temp_good);
 
 	batt_present = qpnp_chg_is_batt_present(chip);
 	if (batt_present) {
@@ -1876,7 +1880,7 @@ qpnp_chg_bat_if_batt_pres_irq_handler(int irq, void *_chip)
 	int batt_present, batt_temp_good, rc;
 
 	batt_present = qpnp_chg_is_batt_present(chip);
-	pr_debug("batt-pres triggered: %d\n", batt_present);
+	pr_info("batt-pres triggered: %d\n", batt_present);
 
 	if (chip->batt_present ^ batt_present) {
 		if (batt_present) {
@@ -1996,7 +2000,7 @@ qpnp_chg_chgr_chg_failed_irq_handler(int irq, void *_chip)
 	struct qpnp_chg_chip *chip = _chip;
 	int rc;
 
-	pr_debug("chg_failed triggered\n");
+	pr_info("chg_failed triggered\n");
 
 	rc = qpnp_chg_masked_write(chip,
 		chip->chgr_base + CHGR_CHG_FAILED,
@@ -2023,7 +2027,7 @@ qpnp_chg_chgr_chg_trklchg_irq_handler(int irq, void *_chip)
 {
 	struct qpnp_chg_chip *chip = _chip;
 
-	pr_debug("TRKL IRQ triggered\n");
+	pr_info("TRKL IRQ triggered\n");
 
 	chip->chg_done = false;
 	if (chip->bat_if_base) {
@@ -2081,7 +2085,7 @@ qpnp_chg_chgr_chg_fastchg_irq_handler(int irq, void *_chip)
 
 	fastchg_on = qpnp_chg_is_fastchg_on(chip);
 
-	pr_debug("FAST_CHG IRQ triggered, fastchg_on: %d\n", fastchg_on);
+	pr_info("FAST_CHG IRQ triggered, fastchg_on: %d\n", fastchg_on);
 
 	if (chip->fastchg_on ^ fastchg_on) {
 		chip->fastchg_on = fastchg_on;
@@ -4128,7 +4132,11 @@ mutex_unlock:
 	return rc;
 }
 
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+#define POWER_STAGE_REDUCE_CHECK_PERIOD_NS      (20LL * NSEC_PER_SEC)
+#else
 #define POWER_STAGE_REDUCE_CHECK_PERIOD_SECONDS		20
+#endif
 #define POWER_STAGE_REDUCE_MAX_VBAT_UV			3900000
 #define POWER_STAGE_REDUCE_MIN_VCHG_UV			4800000
 #define POWER_STAGE_SEL_MASK				0x0F
@@ -4232,7 +4240,11 @@ int get_vbat_averaged(struct qpnp_chg_chip *chip, int sample_count)
 static void
 qpnp_chg_reduce_power_stage(struct qpnp_chg_chip *chip)
 {
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+	ktime_t kt;
+#else
 	struct timespec ts;
+#endif
 	bool power_stage_reduced_in_hw = qpnp_chg_is_power_stage_reduced(chip);
 	bool reduce_power_stage = false;
 	int vbat_uv = get_vbat_averaged(chip, 16);
@@ -4292,11 +4304,16 @@ qpnp_chg_reduce_power_stage(struct qpnp_chg_chip *chip)
 	}
 
 	if (usb_present && usb_ma_above_wall) {
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+		kt = ns_to_ktime(POWER_STAGE_REDUCE_CHECK_PERIOD_NS);
+		alarm_start_relative(&chip->reduce_power_stage_alarm, kt);
+#else
 		getnstimeofday(&ts);
 		ts.tv_sec += POWER_STAGE_REDUCE_CHECK_PERIOD_SECONDS;
 		alarm_start_range(&chip->reduce_power_stage_alarm,
 					timespec_to_ktime(ts),
 					timespec_to_ktime(ts));
+#endif
 	} else {
 		pr_debug("stopping power stage workaround\n");
 		chip->power_stage_workaround_running = false;
@@ -4331,6 +4348,17 @@ qpnp_chg_reduce_power_stage_work(struct work_struct *work)
 	qpnp_chg_reduce_power_stage(chip);
 }
 
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+static enum alarmtimer_restart
+qpnp_chg_reduce_power_stage_callback(struct alarm *alarm, ktime_t now)
+{
+	struct qpnp_chg_chip *chip = container_of(alarm, struct qpnp_chg_chip,
+						reduce_power_stage_alarm);
+
+	schedule_work(&chip->reduce_power_stage_work);
+	return ALARMTIMER_NORESTART;
+}
+#else
 static void
 qpnp_chg_reduce_power_stage_callback(struct alarm *alarm)
 {
@@ -4339,6 +4367,7 @@ qpnp_chg_reduce_power_stage_callback(struct alarm *alarm)
 
 	schedule_work(&chip->reduce_power_stage_work);
 }
+#endif
 
 static int
 qpnp_dc_power_set_property(struct power_supply *psy,
@@ -5319,8 +5348,13 @@ qpnp_charger_probe(struct spmi_device *spmi)
 
 	mutex_init(&chip->jeita_configure_lock);
 	spin_lock_init(&chip->usbin_health_monitor_lock);
+#ifdef CONFIG_ANDROID_INTF_ALARM_DEV
+	alarm_init(&chip->reduce_power_stage_alarm, ALARM_REALTIME,
+			qpnp_chg_reduce_power_stage_callback);
+#else
 	alarm_init(&chip->reduce_power_stage_alarm, ANDROID_ALARM_RTC_WAKEUP,
 			qpnp_chg_reduce_power_stage_callback);
+#endif
 	INIT_WORK(&chip->reduce_power_stage_work,
 			qpnp_chg_reduce_power_stage_work);
 	mutex_init(&chip->batfet_vreg_lock);
