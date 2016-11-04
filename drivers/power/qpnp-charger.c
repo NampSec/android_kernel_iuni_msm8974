@@ -2628,6 +2628,17 @@ get_prop_charge_full(struct qpnp_chg_chip *chip)
 	return 0;
 }
 
+static bool needs_soc_refresh(struct qpnp_chg_chip *chip, ktime_t now)
+{
+	if (!chip->last_soc_chk.tv64 ||
+		(ktime_to_ms(ktime_sub(now, chip->last_soc_chk)) >
+		(BATT_HEARTBEAT_INTERVAL - MSEC_PER_SEC)))
+		return true;
+
+	return false;
+}
+
+#define DEFAULT_CAPACITY	50
 static int
 get_prop_capacity(struct qpnp_chg_chip *chip)
 {
@@ -5750,6 +5761,9 @@ static int qpnp_chg_resume(struct device *dev)
 #endif
 //Gionee yezg 2014-3-13 modify for pmic tm_low_interrupt end
 	}
+
+	if (needs_soc_refresh(chip, ktime_get_boottime()))
+		power_supply_changed(&chip->batt_psy);
 
 	return rc;
 }
