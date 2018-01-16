@@ -59,9 +59,9 @@
 			qcom,pon-type = <0>;
 			qcom,support-reset = <1>;
 			qcom,pull-up = <1>;
-			qcom,s1-timer = <10256>;
+			qcom,s1-timer = <4480>; //10256
 			qcom,s2-timer = <2000>;
-			qcom,s2-type = <1>;
+			qcom,s2-type = <4>; //1
 			linux,code = <116>;
 		};
 
@@ -124,7 +124,7 @@
 
 		qcom,r-sense-uohm = <10000>;
 		qcom,v-cutoff-uv = <3400000>;
-		qcom,max-voltage-uv = <4200000>;
+		qcom,max-voltage-uv = <4350000>; //4200000
 		qcom,r-conn-mohm = <0>;
 		qcom,shutdown-soc-valid-limit = <100>;
 		qcom,adjust-soc-low-threshold = <15>;
@@ -200,27 +200,33 @@
 		#size-cells = <1>;
 		status = "disabled";
 
-		qcom,vddmax-mv = <4200>;
-		qcom,vddsafe-mv = <4230>;
-		qcom,vinmin-mv = <4300>;
+		qcom,vddmax-mv = <4360>;//<4200>;
+		qcom,vddsafe-mv = <4380>;//<4230>;
+		qcom,vinmin-mv = <4400>;//<4300>;
 		qcom,ibatmax-ma = <1500>;
-		qcom,ibatterm-ma = <100>;
+		qcom,ibatterm-ma = <110>;//<100>;
 		qcom,ibatsafe-ma = <1500>;
-		qcom,thermal-mitigation = <1500 700 600 325>;
+		qcom,thermal-mitigation = <1500 1300 1100 1000>;//<1500 700 600 325>;
 		qcom,cool-bat-decidegc = <100>;
-		qcom,cool-bat-mv = <4100>;
-		qcom,ibatmax-warm-ma = <350>;
+		qcom,cool-bat-mv = <4360>;//<4100>;
+		qcom,ibatmax-warm-ma = <1000>;//<350>;
 		qcom,warm-bat-decidegc = <450>;
 		qcom,warm-bat-mv = <4100>;
-		qcom,ibatmax-cool-ma = <350>;
-		qcom,vbatdet-delta-mv = <100>;
+		qcom,ibatmax-cool-ma = <1500>;//<350>;
+		qcom,vbatdet-delta-mv = <50>;//<100>;
 		qcom,resume-soc = <99>;
-		qcom,tchg-mins = <150>;
+		qcom,tchg-mins = <480>;//<150>;
 		qcom,chg-vadc = <&pm8941_vadc>;
 		qcom,chg-iadc = <&pm8941_iadc>;
 		qcom,chg-adc_tm = <&pm8941_adc_tm>;
 		qcom,ibat-calibration-enabled;
-
+//Gionee liujiang 2014-07-02 add for ovp check
+		qcom,ovp-monitor-en;
+//Gionee wudp 2013-10-16 add for btc config begin
+		qcom,batt-hot-percentage = <25>;//25 -> 60 deg C, 35 -> 45 deg C 
+		qcom,batt-cold-percentage = <70>;//70 -> 0 deg C, 80 -> -10 deg C
+		qcom,btc-disabled = <1>;
+//Gionee wudp 2013-10-16 add for btc config end
 		pm8941_chg_chgr: qcom,chgr@1000 {
 			status = "disabled";
 			reg = <0x1000 0x100>;
@@ -564,7 +570,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		qcom,qpnp-rtc-write = <0>;
-		qcom,qpnp-rtc-alarm-pwrup = <0>;
+		qcom,qpnp-rtc-alarm-pwrup = <1>; //0
 
 		qcom,pm8941_rtc_rw@6000 {
 			reg = <0x6000 0x100>;

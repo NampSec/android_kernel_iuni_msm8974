@@ -104,7 +104,9 @@
 			cell-index = <0>;
 			compatible = "qcom,mdss-fb";
 			qcom,memory-reservation-type = "EBI1";
-			qcom,memory-reservation-size = <0x800000>;
+//Gionee xiangzhong modify for 2k(2560x1440x4x2) cmd panel begin
+			qcom,memory-reservation-size = <0x2000000>;
+//Gionee xiangzhong modify for 2k cmd panel begin
 			qcom,memblock-reserve = <0x03200000 0x01E00000>;
 		};
 
@@ -134,6 +136,12 @@
 		qcom,mdss-mdp = <&mdss_mdp>;
 		qcom,platform-reset-gpio = <&pm8941_gpios 19 0>;
 		qcom,platform-enable-gpio = <&msmgpio 58 0>;
+/*Gionee xiangzhongg 2014-04-12 add for tps65132 -5v enable begin*/
+		qcom,tps-enable-gpio = <&msmgpio 46 0>;
+/*Gionee xiangzhongg 2014-04-12 add for tps65132 -5v enable end*/
+/*Gionee xiangzhongg 2014-04-30 add for 1v8 control gpio begin*/
+		qcom,iovcc-enable-gpio = <&msmgpio 53 0>;
+/*Gionee xiangzhongg 2014-04-30 add for 1v8 control gpio begin*/
 		qcom,platform-te-gpio = <&msmgpio 12 0>;
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [00 00 b1 ff 00 00];

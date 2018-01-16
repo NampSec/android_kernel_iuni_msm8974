@@ -4872,6 +4872,18 @@ static struct clk_lookup msm_clocks_8974pro_only[] __initdata = {
 	CLK_LOOKUP("sleep_clk", gcc_sdcc1_cdccal_sleep_clk.c, "msm_sdcc.1"),
 	CLK_LOOKUP("cal_clk", gcc_sdcc1_cdccal_ff_clk.c, "msm_sdcc.1"),
 	CLK_LOOKUP("cam_src_clk", mclk1_clk_src.c, "90.qcom,camera"),
+//add by chenqiang for camera clock control begin
+#ifdef CONFIG_GN_CAMERA_SUPPORT
+	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "66.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "6f.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "204.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "1.qcom,camera"),
+	CLK_LOOKUP("cam_clk", camss_mclk0_clk.c, "66.qcom,camera"),
+	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "6f.qcom,camera"),
+	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "204.qcom,camera"),
+	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "1.qcom,camera"),
+#endif
+//add by chenqiang for camera clock control end
 	CLK_LOOKUP("cam_clk", camss_mclk1_clk.c, "90.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "0.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mclk1_clk_src.c, "1.qcom,camera"),
@@ -4883,6 +4895,18 @@ static struct clk_lookup msm_clocks_8974pro_only[] __initdata = {
 
 static struct clk_lookup msm_clocks_8974_only[] __initdata = {
 	CLK_LOOKUP("cam_src_clk", mmss_gp1_clk_src.c, "90.qcom,camera"),
+//add by chenqiang for camera clock control begin
+#ifdef CONFIG_GN_CAMERA_SUPPORT
+	CLK_LOOKUP("cam_src_clk", mmss_gp0_clk_src.c, "66.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", gp1_clk_src.c, "6f.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", gp1_clk_src.c, "204.qcom,camera"),
+	CLK_LOOKUP("cam_src_clk", gp1_clk_src.c, "1.qcom,camera"),
+	CLK_LOOKUP("cam_clk", camss_gp0_clk.c, "66.qcom,camera"),
+	CLK_LOOKUP("cam_clk", gcc_gp1_clk.c, "6f.qcom,camera"),
+	CLK_LOOKUP("cam_clk", gcc_gp1_clk.c, "204.qcom,camera"),
+	CLK_LOOKUP("cam_clk", gcc_gp1_clk.c, "1.qcom,camera"),
+#endif
+//add by chenqiang for camera clock control end
 	CLK_LOOKUP("cam_clk", camss_gp1_clk.c, "90.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mmss_gp0_clk_src.c, "0.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mmss_gp1_clk_src.c, "1.qcom,camera"),
