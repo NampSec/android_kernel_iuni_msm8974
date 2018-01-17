@@ -103,10 +103,6 @@
 		mdss_fb0: qcom,mdss_fb_primary {
 			cell-index = <0>;
 			compatible = "qcom,mdss-fb";
-			qcom,memory-reservation-type = "EBI1";
-//Gionee xiangzhong modify for 2k(2560x1440x4x2) cmd panel begin
-			qcom,memory-reservation-size = <0x2000000>;
-//Gionee xiangzhong modify for 2k cmd panel begin
 			qcom,memblock-reserve = <0x03200000 0x01E00000>;
 		};
 
