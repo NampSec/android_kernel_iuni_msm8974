@@ -243,6 +243,13 @@ void getnstimeofday(struct timespec *ts)
 
 EXPORT_SYMBOL(getnstimeofday);
 
+void getnstimeofday_no_nsecs(struct timespec *ts)
+{
+	*ts = timekeeper.xtime;
+}
+
+EXPORT_SYMBOL(getnstimeofday_no_nsecs);
+
 ktime_t ktime_get(void)
 {
 	unsigned int seq;

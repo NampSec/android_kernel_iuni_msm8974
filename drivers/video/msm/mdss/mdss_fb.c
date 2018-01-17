@@ -53,6 +53,7 @@
 #include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
+#include "mdss_dsi.h"
 #include "mdss_mdp_splash_logo.h"
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -152,31 +153,13 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 	if (notify > NOTIFY_UPDATE_POWER_OFF)
 		return -EINVAL;
 
-	if (notify == NOTIFY_UPDATE_INIT) {
-		mutex_lock(&mfd->update.lock);
-		mfd->update.init_done = true;
-		mutex_unlock(&mfd->update.lock);
-		ret = 1;
-	} else if (notify == NOTIFY_UPDATE_DEINIT) {
-		mutex_lock(&mfd->update.lock);
-		mfd->update.init_done = false;
-		mutex_unlock(&mfd->update.lock);
-		complete(&mfd->update.comp);
-		complete(&mfd->no_update.comp);
-		ret = 1;
-	} else if (mfd->update.is_suspend) {
+	if (mfd->update.is_suspend) {
 		to_user = NOTIFY_TYPE_SUSPEND;
 		mfd->update.is_suspend = 0;
 		ret = 1;
 	} else if (notify == NOTIFY_UPDATE_START) {
+		INIT_COMPLETION(mfd->update.comp);
 		mutex_lock(&mfd->update.lock);
-		if (mfd->update.init_done)
-			INIT_COMPLETION(mfd->update.comp);
-		else {
-			mutex_unlock(&mfd->update.lock);
-			pr_err("notify update start called without init\n");
-			return -EINVAL;
-		}
 		mfd->update.ref_count++;
 		mutex_unlock(&mfd->update.lock);
 		ret = wait_for_completion_interruptible_timeout(
@@ -190,15 +173,7 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 			ret = 1;
 		}
 	} else if (notify == NOTIFY_UPDATE_STOP) {
-		mutex_lock(&mfd->update.lock);
-		if (mfd->update.init_done)
-			INIT_COMPLETION(mfd->no_update.comp);
-		else {
-			mutex_unlock(&mfd->update.lock);
-			pr_err("notify update stop called without init\n");
-			return -EINVAL;
-		}
-		mutex_unlock(&mfd->update.lock);
+		INIT_COMPLETION(mfd->no_update.comp);
 		mutex_lock(&mfd->no_update.lock);
 		mfd->no_update.ref_count++;
 		mutex_unlock(&mfd->no_update.lock);
@@ -245,6 +220,11 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	if (!IS_CALIB_MODE_BL(mfd) && (!mfd->ext_bl_ctrl || !value ||
 							!mfd->bl_level)) {
 		mutex_lock(&mfd->bl_lock);
+		/* If this is the first backlight write after powering on,
+		   wait until the first frame is committed to avoid showing
+		   any garbage left over in frame memory */
+		if (!mfd->bl_level && value && mfd->panel.type == MIPI_CMD_PANEL)
+			mfd->bl_updated = false;
 		mdss_fb_set_backlight(mfd, bl_lvl);
 		mutex_unlock(&mfd->bl_lock);
 	}
@@ -298,30 +278,25 @@ static ssize_t mdss_fb_get_type(struct device *dev,
 
 static void mdss_fb_parse_dt(struct msm_fb_data_type *mfd)
 {
-	u32 data[2] = {0};
-	u32 panel_xres;
+	u32 data[2];
 	struct platform_device *pdev = mfd->pdev;
 
-	of_property_read_u32_array(pdev->dev.of_node,
-		"qcom,mdss-fb-split", data, 2);
+	mfd->splash_logo_enabled = of_property_read_bool(pdev->dev.of_node,
+				"qcom,mdss-fb-splash-logo-enabled");
 
-	panel_xres = mfd->panel_info->xres;
-	if (data[0] && data[1]) {
-		if (mfd->split_display)
-			panel_xres *= 2;
-
-		if (panel_xres == data[0] + data[1]) {
-			mfd->split_fb_left = data[0];
-			mfd->split_fb_right = data[1];
-		}
+	if (of_property_read_u32_array(pdev->dev.of_node, "qcom,mdss-fb-split",
+				       data, 2))
+		return;
+	if (data[0] && data[1] &&
+	    (mfd->panel_info->xres == (data[0] + data[1]))) {
+		mfd->split_fb_left = data[0];
+		mfd->split_fb_right = data[1];
+		pr_info("split framebuffer left=%d right=%d\n",
+			mfd->split_fb_left, mfd->split_fb_right);
 	} else {
-		if (mfd->split_display)
-			mfd->split_fb_left = mfd->split_fb_right = panel_xres;
-		else
-			mfd->split_fb_left = mfd->split_fb_right = 0;
+		mfd->split_fb_left = 0;
+		mfd->split_fb_right = 0;
 	}
-	pr_info("split framebuffer left=%d right=%d\n",
-		mfd->split_fb_left, mfd->split_fb_right);
 }
 
 static ssize_t mdss_fb_get_split(struct device *dev,
@@ -633,8 +608,10 @@ static int mdss_fb_probe(struct platform_device *pdev)
 		backlight_led.max_brightness = mfd->panel_info->brightness_max;
 		if (led_classdev_register(&pdev->dev, &backlight_led))
 			pr_err("led_classdev_register failed\n");
-		else
+		else {
 			lcd_backlight_registered = 1;
+			mfd->bl_level = backlight_led.brightness;
+		}
 	}
 
 	mdss_fb_create_sysfs(mfd);
@@ -1666,7 +1643,6 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	mfd->no_update.timer.data = (unsigned long)mfd;
 	mfd->update.ref_count = 0;
 	mfd->no_update.ref_count = 0;
-	mfd->update.init_done = false;
 	init_completion(&mfd->update.comp);
 	init_completion(&mfd->no_update.comp);
 	init_completion(&mfd->power_off_comp);
@@ -2786,6 +2762,17 @@ static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 	mdss_fb_power_setting_idle(mfd);
 
+	if ((cmd != MSMFB_VSYNC_CTRL) && (cmd != MSMFB_OVERLAY_VSYNC_CTRL) &&
+			(cmd != MSMFB_ASYNC_BLIT) && (cmd != MSMFB_BLIT) &&
+			(cmd != MSMFB_NOTIFY_UPDATE) &&
+			(cmd != MSMFB_OVERLAY_PREPARE)) {
+		ret = mdss_fb_pan_idle(mfd);
+		if (ret) {
+			pr_debug("Shutdown pending. Aborting operation %x\n",
+				cmd);
+			goto exit;
+		}
+	}
 	ret = __ioctl_wait_idle(mfd, cmd);
 	if (ret)
 		goto exit;

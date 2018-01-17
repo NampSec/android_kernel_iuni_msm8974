@@ -84,7 +84,6 @@ struct disp_info_notify {
 	int value;
 	int is_suspend;
 	int ref_count;
-	bool init_done;
 };
 
 struct msm_sync_pt_data {
@@ -222,6 +221,9 @@ struct msm_fb_data_type {
 	bool shutdown_pending;
 
 	struct msm_fb_splash_info splash_info;
+
+	bool splash_logo_enabled;
+
 
 	wait_queue_head_t ioctl_q;
 	atomic_t ioctl_ref_cnt;
