@@ -640,7 +640,7 @@
 	};
 
 	spi_7: spi_epm: spi@f9966000 { /* BLSP2 QUP4 */
-		status = "disabled"; // add by Abdess
+		status = "disabled"; // kernel log error
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -2192,7 +2192,7 @@
 
 	qcom_crypto1: qcrypto1@fd440000 {
 		compatible = "qcom,qcrypto";
-		status = "disabled";
+		status = "disabled"; //kernel log error
 		reg = <0xfd440000 0x20000>,
 		      <0xfd444000 0x1b000>;
 		reg-names = "crypto-base","crypto-bam-base";

@@ -251,8 +251,7 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 static void msm_restart_prepare(const char *cmd)
 {
 #ifdef CONFIG_MSM_DLOAD_MODE
-	pr_info("%s : in_panic: %s, restart_mode: %s, download_mode: %s\n",
-			__func__, in_panic?"Y":"N", restart_mode?"Y":"N", download_mode?"Y":"N" );
+
 	/* This looks like a normal reboot at this point. */
 	set_dload_mode(0);
 
