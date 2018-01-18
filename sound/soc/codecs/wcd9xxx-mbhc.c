@@ -2396,10 +2396,8 @@ static void wcd9xxx_find_plug_and_report(struct wcd9xxx_mbhc *mbhc,
 /* called under codec_resource_lock acquisition */
 static void wcd9xxx_mbhc_decide_swch_plug(struct wcd9xxx_mbhc *mbhc)
 {
-#ifndef CONFIG_GN_MACH_GIONEE_SUPPORT
 	enum wcd9xxx_mbhc_plug_type plug_type;
 	bool current_source_enable;
-#endif
 
 	pr_debug("%s: enter\n", __func__);
 
@@ -2407,10 +2405,6 @@ static void wcd9xxx_mbhc_decide_swch_plug(struct wcd9xxx_mbhc *mbhc)
 
 	WCD9XXX_BCL_ASSERT_LOCKED(mbhc->resmgr);
 
-#ifdef CONFIG_GN_MACH_GIONEE_SUPPORT
-	wcd9xxx_cleanup_hs_polling(mbhc);
-	wcd9xxx_schedule_hs_detect_plug(mbhc, &mbhc->correct_plug_swch);
-#else
 	current_source_enable = (((mbhc->mbhc_cfg->cs_enable_flags &
 		      (1 << MBHC_CS_ENABLE_INSERTION)) != 0) &&
 		     (!(snd_soc_read(mbhc->codec,
