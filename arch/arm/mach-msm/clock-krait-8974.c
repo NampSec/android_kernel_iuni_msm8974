@@ -590,7 +590,7 @@ module_param_string(table_name, table_name, sizeof(table_name), S_IRUGO);
 static unsigned int pvs_config_ver;
 module_param(pvs_config_ver, uint, S_IRUGO);
 
-/* gionee underclock begin */
+#ifdef GN_MACH_MSM8974_NBL8910A_SUPPORT
 static unsigned int no_cpu_underclock;
 
 static int __init get_cpu_underclock(char *cpu_uc)
@@ -601,7 +601,7 @@ static int __init get_cpu_underclock(char *cpu_uc)
 	return 0;
 }
 __setup("no_underclock=", get_cpu_underclock);
-/* gionee underclock end */
+#endif
 
 static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 {
@@ -718,7 +718,7 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 		}
 	}
 
-/* gionee underclock begin */
+#ifdef GN_MACH_MSM8974_NBL8910A_SUPPORT
 	/* Underclock to 1958MHz for better UX */
 	if (!no_cpu_underclock) {
 		while (rows--) {
@@ -726,7 +726,7 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 				break;
 		}
 	}
-/* gionee underclock end */
+#endif
 
 	krait_update_uv(uv, rows, pvs ? 25000 : 0);
 
