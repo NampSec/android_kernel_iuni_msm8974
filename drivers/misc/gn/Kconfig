@@ -4,9 +4,9 @@ menu "Gionee specific support for the IUNI U3"
 # GIONEE'S CUSTOM KERNEL FLAGS	#
 #################################
 
-#config GN_MACH_GIONEE
-#	bool "GN_MACH_GIONEE"
-#	default y
+config GN_MACH_GIONEE_SUPPORT
+	bool "GN_MACH_GIONEE_SUPPORT"
+	default y
 
 config GN_MACH_MSM8974_NBL8910A_SUPPORT
 	bool "GN_MACH_MSM8974_NBL8910A_SUPPORT"
