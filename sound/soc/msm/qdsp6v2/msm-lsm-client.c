@@ -271,9 +271,8 @@ static int msm_lsm_ioctl_shared(struct snd_pcm_substream *substream,
 					 __func__, user->payload_size,
 					 prtd->event_status->payload_size);
 				rc = -ENOMEM;
-			} else {
+			} else
 				memcpy(user, prtd->event_status, size);
-			}
 		} else if (xchg) {
 			pr_debug("%s: Wait aborted\n", __func__);
 			rc = 0;
@@ -642,7 +641,7 @@ static int msm_lsm_close(struct snd_pcm_substream *substream)
 	unsigned long flags;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct lsm_priv *prtd = runtime->private_data;
-    int ret;
+	int ret = 0;
 
 	pr_debug("%s\n", __func__);
 	if (prtd->lsm_client->started) {
