@@ -640,6 +640,7 @@
 	};
 
 	spi_7: spi_epm: spi@f9966000 { /* BLSP2 QUP4 */
+		status = "disabled"; // add by Abdess
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
