@@ -382,7 +382,7 @@ struct wcd9xxx_mbhc {
 	struct mutex mbhc_lock;
 
 #ifdef CONFIG_GN_MACH_GIONEE_SUPPORT
-	int fast_detection;
+	enum wcd9xxx_mbhc_plug_type fast_detection;
 #endif
 };
 
