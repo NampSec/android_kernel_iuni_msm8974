@@ -380,6 +380,10 @@ struct wcd9xxx_mbhc {
 #endif
 
 	struct mutex mbhc_lock;
+
+#ifdef CONFIG_GN_MACH_GIONEE_SUPPORT
+	int fast_detection;
+#endif
 };
 
 #define WCD9XXX_MBHC_CAL_SIZE(buttons, rload) ( \
