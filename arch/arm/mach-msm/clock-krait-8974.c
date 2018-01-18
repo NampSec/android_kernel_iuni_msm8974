@@ -705,6 +705,14 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 		}
 	}
 
+/* gionee underclock begin */
+	/* Underclock to 1958MHz for better UX */
+	while (rows--) {
+		if (freq[rows - 1] == 1958400000)
+			break;
+	}
+/* gionee underclock end */
+
 	krait_update_uv(uv, rows, pvs ? 25000 : 0);
 
 	if (clk_init_vdd_class(dev, &krait0_clk.c, rows, freq, uv, ua))
