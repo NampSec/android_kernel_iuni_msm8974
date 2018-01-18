@@ -29,10 +29,7 @@
 
 static int mdss_dsi_regulator_init(struct platform_device *pdev)
 {
-	int rc = 0;
-
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-	int i = 0;
 
 	if (!pdev) {
 		pr_err("%s: invalid input\n", __func__);
@@ -45,23 +42,15 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; !rc && (i < DSI_MAX_PM); i++) {
-		rc = msm_dss_config_vreg(&pdev->dev,
-			ctrl_pdata->power_data[i].vreg_config,
-			ctrl_pdata->power_data[i].num_vreg, 1);
-		if (rc)
-			pr_err("%s: failed to init vregs for %s\n",
-				__func__, __mdss_dsi_pm_name(i));
-	}
-
-	return rc;
+	return msm_dss_config_vreg(&pdev->dev,
+			ctrl_pdata->power_data.vreg_config,
+			ctrl_pdata->power_data.num_vreg, 1);
 }
 
 static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 {
-	int ret = 0;
+	int ret;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-	int i = 0;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -77,15 +66,13 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		return 0;
 
 	if (enable) {
-		for (i = 0; i < DSI_MAX_PM; i++) {
-			ret = msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 1);
-			if (ret) {
-				pr_err("%s: failed to enable vregs for %s\n",
-					__func__, __mdss_dsi_pm_name(i));
-				goto error_enable;
-			}
+		ret = msm_dss_enable_vreg(
+			ctrl_pdata->power_data.vreg_config,
+			ctrl_pdata->power_data.num_vreg, 1);
+		if (ret) {
+			pr_err("%s:Failed to enable vregs.rc=%d\n",
+				__func__, ret);
+			goto error;
 		}
 
 		if (!pdata->panel_info.mipi.lp11_init) {
@@ -93,7 +80,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
-				goto error_enable;
+				if (msm_dss_enable_vreg(
+				ctrl_pdata->power_data.vreg_config,
+				ctrl_pdata->power_data.num_vreg, 0))
+					pr_err("Disable vregs failed\n");
+				goto error;
 			}
 		}
 	} else {
@@ -103,25 +94,14 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 					__func__, ret);
 			goto error;
 		}
-
-		for (i = DSI_MAX_PM - 1; i >= 0; i--) {
-			ret = msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 0);
-			if (ret)
-				pr_err("%s: failed to disable vregs for %s\n",
-					__func__, __mdss_dsi_pm_name(i));
+		ret = msm_dss_enable_vreg(
+			ctrl_pdata->power_data.vreg_config,
+			ctrl_pdata->power_data.num_vreg, 0);
+		if (ret) {
+			pr_err("%s: Failed to disable vregs.rc=%d\n",
+				__func__, ret);
 		}
 	}
-
-error_enable:
-	if (ret) {
-		for (; i >= 0; i--)
-			msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 0);
-	}
-
 error:
 	return ret;
 }
@@ -142,13 +122,11 @@ static void mdss_dsi_put_dt_vreg_data(struct device *dev,
 }
 
 static int mdss_dsi_get_dt_vreg_data(struct device *dev,
-	struct dss_module_power *mp, enum dsi_pm_type module)
+	struct dss_module_power *mp)
 {
 	int i = 0, rc = 0;
 	u32 tmp = 0;
 	struct device_node *of_node = NULL, *supply_node = NULL;
-	const char *pm_supply_name = NULL;
-	struct device_node *supply_root_node = NULL;
 
 	if (!dev || !mp) {
 		pr_err("%s: invalid input\n", __func__);
@@ -159,17 +137,11 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 	of_node = dev->of_node;
 
 	mp->num_vreg = 0;
-	pm_supply_name = __mdss_dsi_pm_supply_node_name(module);
-	supply_root_node = of_find_node_by_name(of_node, pm_supply_name);
-	if (!supply_root_node) {
-		pr_err("no supply entry present\n");
-		goto novreg;
+	for_each_child_of_node(of_node, supply_node) {
+		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
+						26))
+			++mp->num_vreg;
 	}
-
-	for_each_child_of_node(supply_root_node, supply_node) {
-		mp->num_vreg++;
-	}
-
 	if (mp->num_vreg == 0) {
 		pr_debug("%s: no vreg\n", __func__);
 		goto novreg;
@@ -185,113 +157,109 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 		goto error;
 	}
 
-	for_each_child_of_node(supply_root_node, supply_node) {
-		const char *st = NULL;
-		/* vreg-name */
-		rc = of_property_read_string(supply_node,
-			"qcom,supply-name", &st);
-		if (rc) {
-			pr_err("%s: error reading name. rc=%d\n",
-				__func__, rc);
-			goto error;
-		}
-		snprintf(mp->vreg_config[i].vreg_name,
-			ARRAY_SIZE((mp->vreg_config[i].vreg_name)), "%s", st);
-		/* vreg-min-voltage */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-min-voltage", &tmp);
-		if (rc) {
-			pr_err("%s: error reading min volt. rc=%d\n",
-				__func__, rc);
-			goto error;
-		}
-		mp->vreg_config[i].min_voltage = tmp;
+	for_each_child_of_node(of_node, supply_node) {
+		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
+						26)) {
+			const char *st = NULL;
+			/* vreg-name */
+			rc = of_property_read_string(supply_node,
+				"qcom,supply-name", &st);
+			if (rc) {
+				pr_err("%s: error reading name. rc=%d\n",
+					__func__, rc);
+				goto error;
+			}
+			snprintf(mp->vreg_config[i].vreg_name,
+				ARRAY_SIZE((mp->vreg_config[i].vreg_name)),
+				"%s", st);
+			/* vreg-min-voltage */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-min-voltage", &tmp);
+			if (rc) {
+				pr_err("%s: error reading min volt. rc=%d\n",
+					__func__, rc);
+				goto error;
+			}
+			mp->vreg_config[i].min_voltage = tmp;
 
-		/* vreg-max-voltage */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-max-voltage", &tmp);
-		if (rc) {
-			pr_err("%s: error reading max volt. rc=%d\n",
-				__func__, rc);
-			goto error;
-		}
-		mp->vreg_config[i].max_voltage = tmp;
+			/* vreg-max-voltage */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-max-voltage", &tmp);
+			if (rc) {
+				pr_err("%s: error reading max volt. rc=%d\n",
+					__func__, rc);
+				goto error;
+			}
+			mp->vreg_config[i].max_voltage = tmp;
 
-		/* enable-load */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-enable-load", &tmp);
-		if (rc) {
-			pr_err("%s: error reading enable load. rc=%d\n",
-				__func__, rc);
-			goto error;
-		}
-		mp->vreg_config[i].enable_load = tmp;
+			/* enable-load */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-enable-load", &tmp);
+			if (rc) {
+				pr_err("%s: error reading enable load. rc=%d\n",
+					__func__, rc);
+				goto error;
+			}
+			mp->vreg_config[i].enable_load = tmp;
 
-		/* disable-load */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-disable-load", &tmp);
-		if (rc) {
-			pr_err("%s: error reading disable load. rc=%d\n",
-				__func__, rc);
-			goto error;
-		}
-		mp->vreg_config[i].disable_load = tmp;
+			/* disable-load */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-disable-load", &tmp);
+			if (rc) {
+				pr_err("%s: error reading disable load. rc=%d\n",
+					__func__, rc);
+				goto error;
+			}
+			mp->vreg_config[i].disable_load = tmp;
 
-		/* pre-sleep */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-pre-on-sleep", &tmp);
-		if (rc) {
-			pr_debug("%s: error reading supply pre sleep value. rc=%d\n",
-				__func__, rc);
-			rc = 0;
-		} else {
-			mp->vreg_config[i].pre_on_sleep = tmp;
-		}
+			/* pre-sleep */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-pre-on-sleep", &tmp);
+			if (rc) {
+				pr_debug("%s: error reading supply pre sleep value. rc=%d\n",
+					__func__, rc);
+			}
+			mp->vreg_config[i].pre_on_sleep = (!rc ? tmp : 0);
 
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-pre-off-sleep", &tmp);
-		if (rc) {
-			pr_debug("%s: error reading supply pre sleep value. rc=%d\n",
-				__func__, rc);
-			rc = 0;
-		} else {
-			mp->vreg_config[i].pre_off_sleep = tmp;
-		}
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-pre-off-sleep", &tmp);
+			if (rc) {
+				pr_debug("%s: error reading supply pre sleep value. rc=%d\n",
+					__func__, rc);
+			}
+			mp->vreg_config[i].pre_off_sleep = (!rc ? tmp : 0);
 
-		/* post-sleep */
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-post-on-sleep", &tmp);
-		if (rc) {
-			pr_debug("%s: error reading supply post sleep value. rc=%d\n",
-				__func__, rc);
-			rc = 0;
-		} else {
-			mp->vreg_config[i].post_on_sleep = tmp;
-		}
+			/* post-sleep */
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-post-on-sleep", &tmp);
+			if (rc) {
+				pr_debug("%s: error reading supply post sleep value. rc=%d\n",
+					__func__, rc);
+			}
+			mp->vreg_config[i].post_on_sleep = (!rc ? tmp : 0);
 
-		rc = of_property_read_u32(supply_node,
-			"qcom,supply-post-off-sleep", &tmp);
-		if (rc) {
-			pr_debug("%s: error reading supply post sleep value. rc=%d\n",
-				__func__, rc);
-			rc = 0;
-		} else {
-			mp->vreg_config[i].post_off_sleep = tmp;
-		}
+			rc = of_property_read_u32(supply_node,
+				"qcom,supply-post-off-sleep", &tmp);
+			if (rc) {
+				pr_debug("%s: error reading supply post sleep value. rc=%d\n",
+					__func__, rc);
+			}
+			mp->vreg_config[i].post_off_sleep = (!rc ? tmp : 0);
 
-		pr_debug("%s: %s min=%d, max=%d, enable=%d, disable=%d, preonsleep=%d, postonsleep=%d, preoffsleep=%d, postoffsleep=%d\n",
-			__func__,
-			mp->vreg_config[i].vreg_name,
-			mp->vreg_config[i].min_voltage,
-			mp->vreg_config[i].max_voltage,
-			mp->vreg_config[i].enable_load,
-			mp->vreg_config[i].disable_load,
-			mp->vreg_config[i].pre_on_sleep,
-			mp->vreg_config[i].post_on_sleep,
-			mp->vreg_config[i].pre_off_sleep,
-			mp->vreg_config[i].post_off_sleep
-			);
-		++i;
+			pr_debug("%s: %s min=%d, max=%d, enable=%d, disable=%d, preonsleep=%d, postonsleep=%d, preoffsleep=%d, postoffsleep=%d\n",
+				__func__,
+				mp->vreg_config[i].vreg_name,
+				mp->vreg_config[i].min_voltage,
+				mp->vreg_config[i].max_voltage,
+				mp->vreg_config[i].enable_load,
+				mp->vreg_config[i].disable_load,
+				mp->vreg_config[i].pre_on_sleep,
+				mp->vreg_config[i].post_on_sleep,
+				mp->vreg_config[i].pre_off_sleep,
+				mp->vreg_config[i].post_off_sleep
+				);
+			++i;
+		}
 	}
 
 	return rc;
@@ -484,7 +452,6 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	struct mipi_panel_info *pinfo = NULL;
 	u32 lane_status = 0;
 	u32 active_lanes = 0;
-	u32 regval = 0;
 
 	if (!ctrl_pdata) {
 		pr_err("%s: invalid input\n", __func__);
@@ -504,33 +471,11 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		return -ENOTSUPP;
 	}
 
-	mutex_lock(&ctrl_pdata->ulps_lock);
-
-	/*
-	 * ulps_ref_count: holds ulps states supporting nested ulps control
-	 * (initial: 1 -> ulps disabled)
-	 * 0: ulps enabled...
-	 * >= 1: ulps disabled
-	 */
-
-	if (enable && ctrl_pdata->ulps_ref_count < 1) {
-		pr_err("%s: Try to enable ulps which has not been disabled"
-			"count = %d\n", __func__, ctrl_pdata->ulps_ref_count);
-		mutex_unlock(&ctrl_pdata->ulps_lock);
-		return -EINVAL;
-	}
-
-	if (enable)
-		ctrl_pdata->ulps_ref_count--;
-	else
-		ctrl_pdata->ulps_ref_count++;
-
-	if (enable && ctrl_pdata->ulps_ref_count == 0) {
+	if (enable && !ctrl_pdata->ulps) {
 		/* No need to configure ULPS mode when entering suspend state */
 		if (!pdata->panel_info.panel_power_on) {
-			pr_warn("%s: panel off. returning\n", __func__);
-			mutex_unlock(&ctrl_pdata->ulps_lock);
-			return 0;
+			pr_err("%s: panel off. returning\n", __func__);
+			goto error;
 		}
 
 		if (__mdss_dsi_clk_enabled(ctrl_pdata, DSI_LINK_CLKS)) {
@@ -574,37 +519,19 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 			goto error;
 		}
 
-		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_LINK_CLKS, 0);
-
 		/* Enable MMSS DSI Clamps */
-		if (ctrl_pdata->ndx == DSI_CTRL_0) {
-			regval = MIPI_INP(ctrl_pdata->mmss_misc_io.base + 0x14);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval | 0x3FF);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval | 0x83FF);
-		} else if (ctrl_pdata->ndx == DSI_CTRL_1) {
-			regval = MIPI_INP(ctrl_pdata->mmss_misc_io.base + 0x14);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval | 0x3FF0000);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval | 0x83FF0000);
-		}
+		MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14, 0x3FF);
+		MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14, 0x83FF);
 
 		wmb();
 
-		/*
-		 * This register write ensures that DSI PHY will not be
-		 * reset when mdss ahb clock reset is asserted while coming
-		 * out of power collapse
-		 */
 		MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x108, 0x1);
 		/* disable DSI controller */
 		mdss_dsi_controller_cfg(0, pdata);
 
-		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 0);
+		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
 		ctrl_pdata->ulps = true;
-	} else if (!enable && ctrl_pdata->ulps_ref_count == 1) {
+	} else if (ctrl_pdata->ulps) {
 		ret = mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
 		if (ret) {
 			pr_err("%s: Failed to enable bus clocks. rc=%d\n",
@@ -632,15 +559,8 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		usleep(100);
 
 		/* Disable MMSS DSI Clamps */
-		if (ctrl_pdata->ndx == DSI_CTRL_0) {
-			regval = MIPI_INP(ctrl_pdata->mmss_misc_io.base + 0x14);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval & ~0x83FF);
-		} else if (ctrl_pdata->ndx == DSI_CTRL_1) {
-			regval = MIPI_INP(ctrl_pdata->mmss_misc_io.base + 0x14);
-			MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14,
-				regval & ~0x83FF0000);
-		}
+		MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14, 0x3FF);
+		MIPI_OUTP(ctrl_pdata->mmss_misc_io.base + 0x14, 0x0);
 
 		ret = mdss_dsi_clk_ctrl(ctrl_pdata, DSI_LINK_CLKS, 1);
 		if (ret) {
@@ -651,27 +571,11 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		}
 
 		/*
-		 * Clear out any phy errors prior to exiting ULPS
-		 * This fixes certain instances where phy does not exit
-		 * ULPS cleanly.
-		 */
-		mdss_dsi_dln0_phy_err(ctrl_pdata);
-
-		/*
 		 * ULPS Exit Request
 		 * Hardware requirement is to wait for at least 1ms
 		 */
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x0AC, 0x1F00);
 		usleep(1000);
-
-		/*
-		 * Sometimes when exiting ULPS, it is possible that some DSI
-		 * lanes are not in the stop state which could lead to DSI
-		 * commands not going through. To avoid this, force the lanes
-		 * to be in stop state.
-		 */
-		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x0AC, 0x1F0000);
-
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x0AC, 0x0);
 
 		/*
@@ -689,17 +593,7 @@ static int mdss_dsi_ulps_config_sub(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	pr_debug("%s: DSI lane status = 0x%08x. Ulps %s\n", __func__,
 		lane_status, enable ? "enabled" : "disabled");
 
-	mutex_unlock(&ctrl_pdata->ulps_lock);
-	return 0;
-
 error:
-	if (enable)
-		ctrl_pdata->ulps_ref_count++;
-	else
-		ctrl_pdata->ulps_ref_count--;
-
-	mutex_unlock(&ctrl_pdata->ulps_lock);
-
 	return ret;
 }
 
@@ -728,77 +622,36 @@ static int mdss_dsi_update_panel_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 
 	return ret;
 }
-
-int mdss_dsi_ulps_config(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
+static int mdss_dsi_ulps_config(struct mdss_dsi_ctrl_pdata *ctrl,
+	int enable)
 {
 	int rc;
 	struct mdss_dsi_ctrl_pdata *mctrl = NULL;
-	struct mdss_dsi_ctrl_pdata *sctrl = NULL;
 
 	if (&ctrl->mmss_misc_io == NULL) {
 		pr_err("%s: mmss_misc_io is NULL. ULPS not valid\n", __func__);
 		return -EINVAL;
 	}
 
-	if (mdss_dsi_is_master_ctrl(ctrl)) {
-		if (enable) {
-			pr_debug("%s: skipping enable for master ctrl%d\n",
-				__func__, ctrl->ndx);
-			rc = 0;
-			goto error;
-		} else {
-			sctrl = mdss_dsi_get_slave_ctrl();
-			if (!sctrl) {
-				pr_err("%s: Unable to get slave control\n",
-					__func__);
-				rc = -EINVAL;
-				goto error;
-			}
-		}
-	}
-
 	if (mdss_dsi_is_slave_ctrl(ctrl)) {
-		if (enable) {
-			mctrl = mdss_dsi_get_master_ctrl();
-			if (!mctrl) {
-				pr_err("%s: Unable to get master control\n",
-					__func__);
-				rc = -EINVAL;
-				goto error;
-			}
-		} else {
-			pr_debug("%s: skipping disable for slave ctrl%d\n",
-				__func__, ctrl->ndx);
-			rc = 0;
-			goto error;
+		mctrl = mdss_dsi_get_master_ctrl();
+		if (!mctrl) {
+			pr_err("%s: Unable to get master control\n", __func__);
+			return -EINVAL;
 		}
 	}
 
 	if (mctrl) {
 		pr_debug("%s: configuring ulps (%s) for master ctrl%d\n",
-			__func__, (enable ? "on" : "off"), mctrl->ndx);
+			__func__, (enable ? "on" : "off"), ctrl->ndx);
 		rc = mdss_dsi_ulps_config_sub(mctrl, enable);
 		if (rc)
-			goto error;
+			return rc;
 	}
 
 	pr_debug("%s: configuring ulps (%s) for ctrl%d\n",
 		__func__, (enable ? "on" : "off"), ctrl->ndx);
-	rc = mdss_dsi_ulps_config_sub(ctrl, enable);
-	if (rc)
-		goto error;
-
-	if (sctrl) {
-		pr_debug("%s: configuring ulps (%s) for slave ctrl%d\n",
-			__func__, (enable ? "on" : "off"), sctrl->ndx);
-		rc = mdss_dsi_ulps_config_sub(sctrl, enable);
-	}
-
-error:
-	if (rc)
-		pr_err("%s: Failed to configure ulps (%s) for ctrl%d\n",
-			__func__, (enable ? "on" : "off"), ctrl->ndx);
-	return rc;
+	return mdss_dsi_ulps_config_sub(ctrl, enable);
 }
 
 int mdss_dsi_on(struct mdss_panel_data *pdata)
@@ -827,15 +680,13 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	pinfo = &pdata->panel_info;
 	mipi = &pdata->panel_info.mipi;
 
-	mutex_lock(&ctrl_pdata->ulps_lock);
-
 	ret = mdss_dsi_panel_power_on(pdata, 1);
 	if (ret) {
 		pr_err("%s:Panel power on failed. rc=%d\n", __func__, ret);
-		goto exit;
+		return ret;
 	}
 
-	ret = mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
+	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
 	if (ret) {
 		pr_err("%s: failed to enable bus clocks. rc=%d\n", __func__,
 			ret);
@@ -843,10 +694,10 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
-			goto exit;
+			return ret;
 		}
 		pdata->panel_info.panel_power_on = 0;
-		goto exit;
+		return ret;
 	}
 	pdata->panel_info.panel_power_on = 1;
 
@@ -882,11 +733,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
 
-exit:
-	mutex_unlock(&ctrl_pdata->ulps_lock);
-
 	pr_debug("%s-:\n", __func__);
-	return ret;
+	return 0;
 }
 
 static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
@@ -1338,11 +1186,10 @@ end:
 
 static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 {
-	int rc = 0, i = 0;
+	int rc = 0;
 	u32 index;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct device_node *dsi_pan_node = NULL;
-	struct mdss_panel_info *pinfo = NULL;
 	char panel_cfg[MDSS_MAX_PANEL_LEN];
 	const char *ctrl_name;
 	bool cmd_cfg_cont_splash = true;
@@ -1403,14 +1250,12 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	}
 
 	/* Parse the regulator information */
-	for (i = 0; i < DSI_MAX_PM; i++) {
-		rc = mdss_dsi_get_dt_vreg_data(&pdev->dev,
-			&ctrl_pdata->power_data[i], i);
-		if (rc) {
-			DEV_ERR("%s: '%s' get_dt_vreg_data failed.rc=%d\n",
-				__func__, __mdss_dsi_pm_name(i), rc);
-			goto error_vreg;
-		}
+	rc = mdss_dsi_get_dt_vreg_data(&pdev->dev,
+				       &ctrl_pdata->power_data);
+	if (rc) {
+		pr_err("%s: failed to get vreg data from dt. rc=%d\n",
+		       __func__, rc);
+		goto error_vreg;
 	}
 
 	/* DSI panels can be different between controllers */
@@ -1429,9 +1274,6 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 
 	cmd_cfg_cont_splash = mdss_panel_get_boot_cfg() ? true : false;
 
-	mutex_init(&ctrl_pdata->ulps_lock);
-	ctrl_pdata->ulps_ref_count = 1;	/* default: 1 -> ulps disable */
-
 	rc = mdss_dsi_panel_init(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
 	if (rc) {
 		pr_err("%s: dsi panel init failed\n", __func__);
@@ -1444,20 +1286,13 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		goto error_pan_node;
 	}
 
-	pinfo = &ctrl_pdata->panel_data.panel_info;
-	if (pinfo->cont_splash_enabled)
-		mdss_dsi_op_mode_config(pinfo->mipi.mode,
-				&ctrl_pdata->panel_data);
-
 	pr_debug("%s: Dsi Ctrl->%d initialized\n", __func__, index);
 	return 0;
 
 error_pan_node:
 	of_node_put(dsi_pan_node);
 error_vreg:
-	for (; i >= 0; i--)
-		mdss_dsi_put_dt_vreg_data(&pdev->dev,
-			&ctrl_pdata->power_data[i]);
+	mdss_dsi_put_dt_vreg_data(&pdev->dev, &ctrl_pdata->power_data);
 error_no_mem:
 	devm_kfree(&pdev->dev, ctrl_pdata);
 
@@ -1468,23 +1303,17 @@ static int __devexit mdss_dsi_ctrl_remove(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = platform_get_drvdata(pdev);
-	int i = 0;
 
 	if (!ctrl_pdata) {
 		pr_err("%s: no driver data\n", __func__);
 		return -ENODEV;
 	}
 
-	for (i = DSI_MAX_PM - 1; i >= 0; i--) {
-		if (msm_dss_config_vreg(&pdev->dev,
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 1) < 0)
-			pr_err("%s: failed to de-init vregs for %s\n",
-				__func__, __mdss_dsi_pm_name(i));
-		mdss_dsi_put_dt_vreg_data(&pdev->dev,
-			&ctrl_pdata->power_data[i]);
-	}
-
+	if (msm_dss_config_vreg(&pdev->dev,
+			ctrl_pdata->power_data.vreg_config,
+			ctrl_pdata->power_data.num_vreg, 1) < 0)
+		pr_err("%s: failed to de-init vregs\n", __func__);
+	mdss_dsi_put_dt_vreg_data(&pdev->dev, &ctrl_pdata->power_data);
 	mfd = platform_get_drvdata(pdev);
 	msm_dss_iounmap(&ctrl_pdata->mmss_misc_io);
 	msm_dss_iounmap(&ctrl_pdata->phy_io);
@@ -1564,7 +1393,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	int rc, i, len;
 	struct device_node *dsi_ctrl_np = NULL;
 	struct platform_device *ctrl_pdev = NULL;
-	bool dynamic_fps;
 	const char *data;
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
 
@@ -1644,49 +1472,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	ctrl_pdata->shared_pdata.broadcast_enable = of_property_read_bool(
 		pan_node, "qcom,mdss-dsi-panel-broadcast-mode");
-
-	dynamic_fps = of_property_read_bool(pan_node,
-					  "qcom,mdss-dsi-pan-enable-dynamic-fps");
-	if (dynamic_fps) {
-		pinfo->dynamic_fps = true;
-		data = of_get_property(pan_node,
-					  "qcom,mdss-dsi-pan-fps-update", NULL);
-		if (data) {
-			if (!strcmp(data, "dfps_suspend_resume_mode")) {
-				pinfo->dfps_update =
-						DFPS_SUSPEND_RESUME_MODE;
-				pr_debug("%s: dfps mode: suspend/resume\n",
-								__func__);
-			} else if (!strcmp(data,
-					    "dfps_immediate_clk_mode")) {
-				pinfo->dfps_update =
-						DFPS_IMMEDIATE_CLK_UPDATE_MODE;
-				pr_debug("%s: dfps mode: Immediate clk\n",
-								__func__);
-			} else if (!strcmp(data,
-					    "dfps_immediate_porch_mode")) {
-				pinfo->dfps_update =
-					DFPS_IMMEDIATE_PORCH_UPDATE_MODE;
-				pr_debug("%s: dfps mode: Immediate porch\n",
-								__func__);
-			} else {
-				pr_debug("%s: dfps to default mode\n",
-								__func__);
-				pinfo->dfps_update =
-						DFPS_SUSPEND_RESUME_MODE;
-				pr_debug("%s: dfps mode: suspend/resume\n",
-								__func__);
-			}
-		} else {
-			pr_debug("%s: dfps update mode not configured\n",
-								__func__);
-				pinfo->dynamic_fps =
-								false;
-				pr_debug("%s: dynamic FPS disabled\n",
-								__func__);
-		}
-		pinfo->new_fps = pinfo->mipi.frame_rate;
-	}
 
 	pinfo->panel_max_fps = mdss_panel_get_framerate(pinfo);
 	pinfo->panel_max_vtotal = mdss_panel_get_vtotal(pinfo);

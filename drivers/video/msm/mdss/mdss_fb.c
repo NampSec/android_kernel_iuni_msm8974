@@ -53,7 +53,6 @@
 #include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
-#include "mdss_mdp.h"
 #include "mdss_mdp_splash_logo.h"
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -153,13 +152,31 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 	if (notify > NOTIFY_UPDATE_POWER_OFF)
 		return -EINVAL;
 
-	if (mfd->update.is_suspend) {
+	if (notify == NOTIFY_UPDATE_INIT) {
+		mutex_lock(&mfd->update.lock);
+		mfd->update.init_done = true;
+		mutex_unlock(&mfd->update.lock);
+		ret = 1;
+	} else if (notify == NOTIFY_UPDATE_DEINIT) {
+		mutex_lock(&mfd->update.lock);
+		mfd->update.init_done = false;
+		mutex_unlock(&mfd->update.lock);
+		complete(&mfd->update.comp);
+		complete(&mfd->no_update.comp);
+		ret = 1;
+	} else if (mfd->update.is_suspend) {
 		to_user = NOTIFY_TYPE_SUSPEND;
 		mfd->update.is_suspend = 0;
 		ret = 1;
 	} else if (notify == NOTIFY_UPDATE_START) {
-		INIT_COMPLETION(mfd->update.comp);
 		mutex_lock(&mfd->update.lock);
+		if (mfd->update.init_done)
+			INIT_COMPLETION(mfd->update.comp);
+		else {
+			mutex_unlock(&mfd->update.lock);
+			pr_err("notify update start called without init\n");
+			return -EINVAL;
+		}
 		mfd->update.ref_count++;
 		mutex_unlock(&mfd->update.lock);
 		ret = wait_for_completion_interruptible_timeout(
@@ -173,7 +190,15 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 			ret = 1;
 		}
 	} else if (notify == NOTIFY_UPDATE_STOP) {
-		INIT_COMPLETION(mfd->no_update.comp);
+		mutex_lock(&mfd->update.lock);
+		if (mfd->update.init_done)
+			INIT_COMPLETION(mfd->no_update.comp);
+		else {
+			mutex_unlock(&mfd->update.lock);
+			pr_err("notify update stop called without init\n");
+			return -EINVAL;
+		}
+		mutex_unlock(&mfd->update.lock);
 		mutex_lock(&mfd->no_update.lock);
 		mfd->no_update.ref_count++;
 		mutex_unlock(&mfd->no_update.lock);
@@ -390,11 +415,13 @@ static ssize_t mdss_fb_get_panel_info(struct device *dev,
 
 	ret = scnprintf(buf, PAGE_SIZE,
 			"pu_en=%d\nxstart=%d\nwalign=%d\nystart=%d\nhalign=%d\n"
-			"min_w=%d\nmin_h=%d",
+			"min_w=%d\nmin_h=%d\ndyn_fps_en=%d\nmin_fps=%d\n"
+			"max_fps=%d\n",
 			pinfo->partial_update_enabled, pinfo->xstart_pix_align,
 			pinfo->width_pix_align, pinfo->ystart_pix_align,
 			pinfo->height_pix_align, pinfo->min_width,
-			pinfo->min_height);
+			pinfo->min_height, pinfo->dynamic_fps,
+			pinfo->min_fps, pinfo->max_fps);
 
 	return ret;
 }
@@ -484,68 +511,6 @@ static int mdss_fb_lpm_enable(struct msm_fb_data_type *mfd, int mode)
 	return 0;
 }
 
-static int pcc_r = 32768, pcc_g = 32768, pcc_b = 32768;
-static ssize_t mdss_get_rgb(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d %d %d\n", pcc_r, pcc_g, pcc_b);
-}
-
-/**
- * simple color temperature interface using polynomial color correction
- *
- * input values are r/g/b adjustments from 0-32768 representing 0 -> 1
- *
- * example adjustment @ 3500K:
- * 1.0000 / 0.5515 / 0.2520 = 32768 / 25828 / 17347
- *
- * reference chart:
- * http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html
- */
-static ssize_t mdss_set_rgb(struct device *dev,
-	struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	uint32_t r = 0, g = 0, b = 0;
-	struct mdp_pcc_cfg_data pcc_cfg;
-	u32 copyback = 0;
-
-	if (count > 19)
-		return -EINVAL;
-
-	sscanf(buf, "%d %d %d", &r, &g, &b);
-
-	if (r < 0 || r > 32768)
-		return -EINVAL;
-	if (g < 0 || g > 32768)
-		return -EINVAL;
-	if (b < 0 || b > 32768)
-		return -EINVAL;
-
-	pr_info("%s: r=%d g=%d b=%d\n", __func__, r, g, b);
-
-	memset(&pcc_cfg, 0, sizeof(struct mdp_pcc_cfg_data));
-
-	pcc_cfg.block = MDP_LOGICAL_BLOCK_DISP_0;
-	if (r == 32768 && g == 32768 && b == 32768)
-		pcc_cfg.ops = MDP_PP_OPS_DISABLE;
-	else
-		pcc_cfg.ops = MDP_PP_OPS_ENABLE;
-	pcc_cfg.ops |= MDP_PP_OPS_WRITE;
-	pcc_cfg.r.r = r;
-	pcc_cfg.g.g = g;
-	pcc_cfg.b.b = b;
-
-	if (mdss_mdp_pcc_config(&pcc_cfg, &copyback) == 0) {
-		pcc_r = r;
-		pcc_g = g;
-		pcc_b = b;
-		return count;
-	}
-
-	return -EINVAL;
-}
-
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO, mdss_fb_get_split, NULL);
 static DEVICE_ATTR(show_blank_event, S_IRUGO, mdss_mdp_show_blank_event, NULL);
@@ -553,8 +518,6 @@ static DEVICE_ATTR(idle_time, S_IRUGO | S_IWUSR | S_IWGRP,
 	mdss_fb_get_idle_time, mdss_fb_set_idle_time);
 static DEVICE_ATTR(idle_notify, S_IRUGO, mdss_fb_get_idle_notify, NULL);
 static DEVICE_ATTR(msm_fb_panel_info, S_IRUGO, mdss_fb_get_panel_info, NULL);
-static DEVICE_ATTR(rgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_get_rgb,
-	mdss_set_rgb);
 
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
@@ -563,7 +526,6 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_idle_time.attr,
 	&dev_attr_idle_notify.attr,
 	&dev_attr_msm_fb_panel_info.attr,
-	&dev_attr_rgb.attr,
 	NULL,
 };
 
@@ -891,15 +853,6 @@ static int mdss_fb_pm_resume(struct device *dev)
 
 	dev_dbg(dev, "display pm resume\n");
 
-	/*
-	 * It is possible that the runtime status of the fb device may
-	 * have been active when the system was suspended. Reset the runtime
-	 * status to suspended state after a complete system resume.
-	 */
-	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
-	pm_runtime_enable(dev);
-
 	return mdss_fb_resume_sub(mfd);
 }
 #endif
@@ -1011,23 +964,25 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 	u32 temp;
 	bool bl_notify = false;
 
-	mutex_lock(&mfd->bl_lock);
-	if (mfd->unset_bl_level && !mfd->bl_updated) {
-		pdata = dev_get_platdata(&mfd->pdev->dev);
-		if ((pdata) && (pdata->set_backlight)) {
-			mfd->bl_level = mfd->unset_bl_level;
-			temp = mfd->bl_level;
-			if (mfd->mdp.ad_calc_bl)
-				(*mfd->mdp.ad_calc_bl)(mfd, temp, &temp,
-						&bl_notify);
-			if (bl_notify)
-				mdss_fb_bl_update_notify(mfd);
-			pdata->set_backlight(pdata, temp);
-			mfd->bl_level_scaled = mfd->unset_bl_level;
-			mfd->bl_updated = 1;
+	if (mfd->unset_bl_level) {
+		mutex_lock(&mfd->bl_lock);
+		if (!mfd->bl_updated) {
+			pdata = dev_get_platdata(&mfd->pdev->dev);
+			if ((pdata) && (pdata->set_backlight)) {
+				mfd->bl_level = mfd->unset_bl_level;
+				temp = mfd->bl_level;
+				if (mfd->mdp.ad_calc_bl)
+					(*mfd->mdp.ad_calc_bl)(mfd, temp, &temp,
+								&bl_notify);
+				if (bl_notify)
+					mdss_fb_bl_update_notify(mfd);
+				pdata->set_backlight(pdata, temp);
+				mfd->bl_level_scaled = mfd->unset_bl_level;
+				mfd->bl_updated = 1;
+			}
 		}
+		mutex_unlock(&mfd->bl_lock);
 	}
-	mutex_unlock(&mfd->bl_lock);
 }
 
 static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
@@ -1715,6 +1670,7 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	mfd->no_update.timer.data = (unsigned long)mfd;
 	mfd->update.ref_count = 0;
 	mfd->no_update.ref_count = 0;
+	mfd->update.init_done = false;
 	init_completion(&mfd->update.comp);
 	init_completion(&mfd->no_update.comp);
 	init_completion(&mfd->power_off_comp);
@@ -1823,7 +1779,7 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct mdss_fb_proc_info *pinfo = NULL, *temp_pinfo = NULL;
-	int ret = 0;
+	int ret = 0, ad_ret = 0;
 	int pid = current->tgid;
 	bool unknown_pid = true, release_needed = false;
 	struct task_struct *task = current->group_leader;
@@ -1919,6 +1875,13 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 
 		if (mfd->fb_ion_handle)
 			mdss_fb_free_fb_ion_memory(mfd);
+
+		if (mfd->mdp.ad_shutdown_cleanup) {
+			ad_ret = (*mfd->mdp.ad_shutdown_cleanup)(mfd);
+			if (ad_ret)
+				pr_err("AD shutdown cleanup failed ret = %d\n",
+						ad_ret);
+		}
 
 		ret = mdss_fb_blank_sub(FB_BLANK_POWERDOWN, info,
 			mfd->op_enable);
@@ -2311,7 +2274,7 @@ static int __mdss_fb_display_thread(void *data)
 				mfd->index);
 
 	while (1) {
-		wait_event_interruptible(mfd->commit_wait_q,
+		wait_event(mfd->commit_wait_q,
 				(atomic_read(&mfd->commits_pending) ||
 				 kthread_should_stop()));
 

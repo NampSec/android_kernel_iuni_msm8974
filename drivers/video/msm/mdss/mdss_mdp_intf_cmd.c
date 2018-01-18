@@ -22,6 +22,9 @@
 
 #define MAX_SESSIONS 2
 
+/* wait for at most 2 vsync for lowest refresh rate (24hz) */
+#define KOFF_TIMEOUT msecs_to_jiffies(84)
+
 #define STOP_TIMEOUT(hz) msecs_to_jiffies((1000 / hz) * (VSYNC_EXPIRE_TICK + 2))
 #define ULPS_ENTER_TIME msecs_to_jiffies(100)
 
@@ -209,19 +212,14 @@ static inline void mdss_mdp_cmd_clk_on(struct mdss_mdp_cmd_ctx *ctx)
 		if (IS_ERR_VALUE(rc))
 			pr_err("IOMMU attach failed\n");
 
-		if (ctx->ulps) {
-			mdss_mdp_footswitch_ctrl_idle_pc(1,
-				&ctx->ctl->mfd->pdev->dev);
-			mdss_mdp_ctl_restore(ctx->ctl);
-			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 
+		if (ctx->ulps) {
 			if (mdss_mdp_cmd_tearcheck_setup(ctx->ctl))
 				pr_warn("tearcheck setup failed\n");
 			mdss_mdp_ctl_intf_event(ctx->ctl,
 				MDSS_EVENT_DSI_ULPS_CTRL, (void *)0);
 			ctx->ulps = false;
-		} else {
-			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 		}
 
 		mdss_mdp_ctl_intf_event
@@ -407,7 +405,6 @@ static void clk_ctrl_work(struct work_struct *work)
 static void __mdss_mdp_cmd_ulps_work(struct work_struct *work)
 {
 	struct delayed_work *dw = to_delayed_work(work);
-	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	struct mdss_mdp_cmd_ctx *ctx =
 		container_of(dw, struct mdss_mdp_cmd_ctx, ulps_work);
 
@@ -424,11 +421,8 @@ static void __mdss_mdp_cmd_ulps_work(struct work_struct *work)
 	if (!mdss_mdp_ctl_intf_event(ctx->ctl, MDSS_EVENT_DSI_ULPS_CTRL,
 		(void *)1)) {
 		ctx->ulps = true;
-		if (mdata->idle_pc_enabled) {
-			ctx->ctl->play_cnt = 0;
-			mdss_mdp_footswitch_ctrl_idle_pc(0,
-				&ctx->ctl->mfd->pdev->dev);
-		}
+		ctx->ctl->play_cnt = 0;
+		mdss_mdp_footswitch_ctrl_ulps(0, &ctx->ctl->mfd->pdev->dev);
 	}
 }
 
@@ -699,12 +693,12 @@ int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 {
 	struct mdss_mdp_cmd_ctx *ctx;
+	struct mdss_panel_info *pinfo;
 	unsigned long flags;
 	struct mdss_mdp_vsync_handler *tmp, *handle;
 	int need_wait = 0;
 	int ret = 0;
 	int hz;
-	int turn_off_panel = 0;
 
 	ctx = (struct mdss_mdp_cmd_ctx *) ctl->priv_data;
 	if (!ctx) {
@@ -726,18 +720,22 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 
 	hz = mdss_panel_get_framerate(&ctl->panel_data->panel_info);
 
-	if (need_wait) {
+	if (need_wait)
 		if (wait_for_completion_timeout(&ctx->stop_comp,
 					STOP_TIMEOUT(hz))
 		    <= 0) {
 			WARN(1, "stop cmd time out\n");
 
-			mdss_mdp_irq_disable
-				(MDSS_MDP_IRQ_PING_PONG_RD_PTR,
-						ctx->pp_num);
-			ctx->rdptr_enabled = 0;
+			if (IS_ERR_OR_NULL(ctl->panel_data)) {
+				pr_err("no panel data\n");
+			} else {
+				pinfo = &ctl->panel_data->panel_info;
+				mdss_mdp_irq_disable
+					(MDSS_MDP_IRQ_PING_PONG_RD_PTR,
+							ctx->pp_num);
+				ctx->rdptr_enabled = 0;
+			}
 		}
-	}
 
 	if (cancel_work_sync(&ctx->clk_work))
 		pr_debug("no pending clk work\n");
@@ -749,7 +747,6 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 			MDSS_EVENT_REGISTER_RECOVERY_HANDLER,
 			NULL);
 
-	turn_off_panel = ctx->panel_on;
 	ctx->panel_on = 0;
 	mdss_mdp_cmd_clk_off(ctx);
 
@@ -764,13 +761,11 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 	memset(ctx, 0, sizeof(*ctx));
 	ctl->priv_data = NULL;
 
-	if (turn_off_panel) {
-		ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_BLANK, NULL);
-		WARN(ret, "intf %d unblank error (%d)\n", ctl->intf_num, ret);
+	ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_BLANK, NULL);
+	WARN(ret, "intf %d unblank error (%d)\n", ctl->intf_num, ret);
 
-		ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_PANEL_OFF, NULL);
-		WARN(ret, "intf %d unblank error (%d)\n", ctl->intf_num, ret);
-	}
+	ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_PANEL_OFF, NULL);
+	WARN(ret, "intf %d unblank error (%d)\n", ctl->intf_num, ret);
 
 	ctl->stop_fnc = NULL;
 	ctl->display_fnc = NULL;

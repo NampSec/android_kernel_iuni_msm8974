@@ -112,13 +112,6 @@ enum dsi_lane_map_type {
 	DSI_LANE_MAP_3210,
 };
 
-enum dsi_pm_type {
-	DSI_CORE_PM,
-	DSI_CTRL_PM,
-	DSI_PANEL_PM,
-	DSI_MAX_PM
-};
-
 #define CTRL_STATE_UNKNOWN		0x00
 #define CTRL_STATE_PANEL_INIT		BIT(0)
 #define CTRL_STATE_MDP_ACTIVE		BIT(1)
@@ -251,7 +244,7 @@ enum {
 
 #define DSI_EV_PLL_UNLOCKED		0x0001
 #define DSI_EV_MDP_FIFO_UNDERFLOW	0x0002
-#define DSI_EV_DSI_FIFO_EMPTY		0x0003
+#define DSI_EV_DSI_FIFO_EMPTY		0x0004
 #define DSI_EV_MDP_BUSY_RELEASE		0x80000000
 
 struct mdss_dsi_ctrl_pdata {
@@ -308,7 +301,7 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_drv_cm_data shared_pdata;
 	u32 pclk_rate;
 	u32 byte_clk_rate;
-	struct dss_module_power power_data[DSI_MAX_PM];
+	struct dss_module_power power_data;
 	u32 dsi_irq_mask;
 	struct mdss_hw *dsi_hw;
 	struct mdss_panel_recovery *recovery;
@@ -333,8 +326,6 @@ struct mdss_dsi_ctrl_pdata {
 	struct mutex cmd_mutex;
 
 	bool ulps;
-	struct mutex ulps_lock;
-	unsigned int ulps_ref_count;
 
 	struct dsi_buf tx_buf;
 	struct dsi_buf rx_buf;
@@ -400,8 +391,6 @@ void mdss_dsi_cmdlist_kickoff(int intf);
 int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 bool __mdss_dsi_clk_enabled(struct mdss_dsi_ctrl_pdata *ctrl, u8 clk_type);
-int mdss_dsi_ulps_config(struct mdss_dsi_ctrl_pdata *ctrl, int enable);
-void mdss_dsi_dln0_phy_err(struct mdss_dsi_ctrl_pdata *ctrl);
 
 int mdss_dsi_panel_init(struct device_node *node,
 		struct mdss_dsi_ctrl_pdata *ctrl_pdata,
@@ -421,27 +410,6 @@ int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 
 int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct mdss_panel_recovery *recovery);
-
-static inline const char *__mdss_dsi_pm_name(enum dsi_pm_type module)
-{
-	switch (module) {
-	case DSI_CORE_PM:	return "DSI_CORE_PM";
-	case DSI_CTRL_PM:	return "DSI_CTRL_PM";
-	case DSI_PANEL_PM:	return "PANEL_PM";
-	default:		return "???";
-	}
-}
-
-static inline const char *__mdss_dsi_pm_supply_node_name(
-	enum dsi_pm_type module)
-{
-	switch (module) {
-	case DSI_CORE_PM:	return "qcom,core-supply-entries";
-	case DSI_CTRL_PM:	return "qcom,ctrl-supply-entries";
-	case DSI_PANEL_PM:	return "qcom,panel-supply-entries";
-	default:		return "???";
-	}
-}
 
 static inline bool mdss_dsi_broadcast_mode_enabled(void)
 {
