@@ -709,6 +709,7 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 /*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio begin*/
 #if defined(CONFIG_GN_Q_BSP_LCD_IOVCC_CONTROL_SUPPORT)
 #else
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 	{
 		.gpio      = 53,		/* BLSP2 QUP4 SPI_DATA_MOSI */
 		.settings = {
@@ -717,7 +718,9 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 		},
 	},
 #endif
+#endif
 /*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio end*/
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 	{
 		.gpio      = 54,		/* BLSP2 QUP4 SPI_DATA_MISO */
 		.settings = {
@@ -725,6 +728,7 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
 		},
 	},
+#endif
 //add by zhaocuiqin for camera gpio control vaf 
 #ifdef CONFIG_GN_CAMERA_SUPPORT
 	{
@@ -735,6 +739,7 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 		},
 	},
 #else
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 	{
 		.gpio      = 56,		/* BLSP2 QUP4 SPI_CLK */
 		.settings = {
@@ -743,7 +748,8 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 		},
 	},
 #endif
-
+#endif
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 	{
 		.gpio      = 55,		/* BLSP2 QUP4 SPI_CS0_N */
 		.settings = {
@@ -751,6 +757,7 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[0],
 		},
 	},
+#endif
 };
 
 static struct msm_gpiomux_config msm8974_slimbus_config[] __initdata = {
