@@ -1,0 +1,108 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&pm8941_lsid0 {
+
+	qcom,power-on@800 {
+
+		qcom,pon_1 {
+			qcom,s1-timer = <4480>; //10256
+			qcom,s2-type = <4>; //1
+		};
+	};
+
+	pm8941_bms: qcom,bms {
+		qcom,enable-fcc-learning;
+		qcom,min-fcc-learning-soc = <20>;
+		qcom,min-fcc-ocv-pc = <30>;
+		qcom,min-fcc-learning-samples = <5>;
+		qcom,fcc-resolution = <10>;
+		qcom,max-voltage-uv = <4350000>;//<4200000>;
+		qcom,low-voltage-threshold = <3420000>;
+		status = "ok";
+		qcom,battery-data = <&mtp_batterydata>;
+	};
+
+	pm8941_chg: qcom,charger {
+		status = "ok";
+		qcom,vddmax-mv = <4360>;//<4200>;
+		qcom,vddsafe-mv = <4380>;//<4230>;
+		qcom,vinmin-mv = <4400>;//<4300>;
+		qcom,ibatterm-ma = <110>;//<100>;
+		qcom,thermal-mitigation = <1500 1300 1100 1000>;//<1500 700 600 325>;
+		qcom,cool-bat-mv = <4360>;//<4100>;
+		qcom,ibatmax-warm-ma = <1000>;//<350>;
+		qcom,ibatmax-cool-ma = <1500>;//<350>;
+		qcom,vbatdet-delta-mv = <50>;//<100>;
+		qcom,tchg-mins = <480>;//<150>;
+		qcom,batt-hot-percentage = <25>;//25 -> 60 deg C, 35 -> 45 deg C 
+		qcom,batt-cold-percentage = <70>;//70 -> 0 deg C, 80 -> -10 deg C
+		qcom,btc-disabled = <1>;
+	};
+
+	qcom,pm8941_rtc {
+		qcom,qpnp-rtc-alarm-pwrup = <1>; //0
+	};
+};
+
+&pm8941_lsid0 {
+
+	pm8941_clkdiv3: clkdiv@5d00 {
+		qcom,cxo-div = <1>; 		
+	};
+};
+
+/ {
+	mtp_batterydata: qcom,battery-data {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
+
+		/include/ "batterydata/batterydata-XWD-LG-2900mah.dtsi"
+		/include/ "batterydata/batterydata-DS-LG-2900mah.dtsi"
+	};
+};
+
+&pm8941_chg {
+	status = "ok";
+//Gionee wudp 2013-08-07 modify for enable pm8941 chg begin
+	qcom,charging-enabled;//qcom,charging-disabled;
+//Gionee wudp 2013-08-07 modify for enable pm8941 chg end
+	qcom,battery-data = <&mtp_batterydata>;
+
+	qcom,chgr@1000 {
+		status = "ok";
+	};
+
+	qcom,buck@1100 {
+		status = "ok";
+	};
+
+	qcom,bat-if@1200 {
+		status = "ok";
+	};
+
+	qcom,usb-chgpth@1300 {
+		status = "ok";
+	};
+
+	qcom,dc-chgpth@1400 {
+		status = "ok";
+	};
+
+	qcom,boost@1500 {
+		status = "ok";
+	};
+
+	qcom,chg-misc@1600 {
+		status = "ok";
+	};
+};

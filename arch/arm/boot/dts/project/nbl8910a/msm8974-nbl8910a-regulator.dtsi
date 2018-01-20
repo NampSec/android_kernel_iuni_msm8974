@@ -1,0 +1,42 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&pm8941_lsid1 {
+	pm8941_mvs1: regulator@8300 {
+		parent-supply = <&pm8941_chg_otg>;
+		qcom,enable-time = <1000>;
+		qcom,pull-down-enable = <1>;
+		interrupts = <0x1 0x83 0x2>;
+		interrupt-names = "ocp";
+		qcom,ocp-enable = <0>;/*chuqf, for usbotg*/
+		qcom,ocp-max-retries = <10>;
+		qcom,ocp-retry-delay = <30>;
+		qcom,soft-start-enable = <1>;
+		qcom,vs-soft-start-strength = <0>;
+		qcom,hpm-enable = <1>;
+		qcom,auto-mode-enable = <0>;
+		status = "okay";
+	};
+};
+
+&rpm_bus {
+
+	rpm-regulator-ldoa17 {
+		status = "okay";
+		pm8941_l17: regulator-l17 {
+			regulator-min-microvolt = <2700000>; //add by chenqiang for camera
+			regulator-max-microvolt = <2850000>;
+			qcom,init-voltage = <2850000>;
+			status = "okay";
+		};
+	};
+};

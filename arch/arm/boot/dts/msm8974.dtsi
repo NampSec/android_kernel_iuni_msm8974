@@ -704,7 +704,6 @@
 	};
 
 	spi_7: spi_epm: spi@f9966000 { /* BLSP2 QUP4 */
-		status = "disabled"; // kernel log error
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -796,7 +795,6 @@
 				      30>;
 
 			qcom,cdc-reset-gpio = <&msmgpio 63 0>;
-			qcom,cdc-pa-gpio = <&pm8941_gpios 6 0>; /* modify zhaocq speaker pa CR00874233 */
 
 			cdc-vdd-buck-supply = <&pm8941_s2>;
 			qcom,cdc-vdd-buck-voltage = <2150000 2150000>;
@@ -840,12 +838,12 @@
 			qcom,cdc-micbias-cfilt3-mv = <2700>;
 			qcom,cdc-micbias1-cfilt-sel = <0x0>;
 			qcom,cdc-micbias2-cfilt-sel = <0x1>;
-			qcom,cdc-micbias3-cfilt-sel = <0x0>; //dmic3 micbias zhaocq20130806
-			qcom,cdc-micbias4-cfilt-sel = <0x0>; //dmic4 micbias zhaocq20130806
+			qcom,cdc-micbias3-cfilt-sel = <0x2>;
+			qcom,cdc-micbias4-cfilt-sel = <0x2>;
 			qcom,cdc-mclk-clk-rate = <9600000>;
 			qcom,cdc-slim-ifd = "taiko-slim-ifd";
 			qcom,cdc-slim-ifd-elemental-addr = [00 00 A0 00 17 02];
-			qcom,cdc-dmic-sample-rate = <2400000>; //dmic clk 24MHz zhaocq20130806
+			qcom,cdc-dmic-sample-rate = <4800000>;
 		};
 	};
 
@@ -2256,7 +2254,6 @@
 
 	qcom_crypto1: qcrypto1@fd440000 {
 		compatible = "qcom,qcrypto";
-		status = "disabled"; //kernel log error
 		reg = <0xfd440000 0x20000>,
 		      <0xfd444000 0x1b000>;
 		reg-names = "crypto-base","crypto-bam-base";

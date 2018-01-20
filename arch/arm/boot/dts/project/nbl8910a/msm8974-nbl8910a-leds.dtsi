@@ -1,0 +1,98 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/include/ "../../msm8974-leds.dtsi"
+
+&pm8941_lsid1 {
+	qcom,leds@d000 {
+		qcom,rgb_0 {
+			linux,name = "red";//"led:rgb_red";
+			/delete-property/ linux,default-trigger;
+			qcom,use-blink; 
+			qcom,start-idx = <1>; 
+			qcom,duty-pcts = [95 95 95 95 95
+					95 95 95 95 95]; 
+			qcom,pause-lo = <0>; 
+			qcom,pause-hi = <0>; 
+			qcom,ramp-step-ms = <500>; 
+			qcom,lut-flags = <3>; 
+		};
+
+		qcom,rgb_1 {
+			linux,name = "green";//"led:rgb_green";
+			/delete-property/ linux,default-trigger;
+			qcom,use-blink; 
+			qcom,start-idx = <1>; 
+			qcom,duty-pcts = [95 95 95 95 95
+					95 95 95 95 95]; 
+			qcom,pause-lo = <0>; 
+			qcom,pause-hi = <0>; 
+			qcom,ramp-step-ms = <500>;
+			qcom,lut-flags = <3>; 
+		};
+
+		qcom,rgb_2 {
+			linux,name = "blue";//"led:rgb_blue";
+			qcom,use-blink; 
+			qcom,start-idx = <1>; 
+			qcom,duty-pcts = [95 95 95 95 95
+					95 95 95 95 95]; 
+			qcom,pause-lo = <0>; 
+			qcom,pause-hi = <0>; 
+			qcom,ramp-step-ms = <500>; 
+			qcom,lut-flags = <3>; 
+		};
+	};
+};
+
+&pm8941_lsid1 {
+	qcom,leds@d800 {
+		status = "disabled";
+		/delete-node/ qcom,wled_0;
+	};
+
+	qcom,leds@d900 {
+		status = "disabled";
+	};
+
+	qcom,leds@da00 {
+		status = "disabled";
+	};
+
+	qcom,leds@db00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dc00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dd00 {
+		status = "disabled";
+	};
+
+	qcom,leds@de00 {
+		status = "disabled";
+	};
+
+	qcom,leds@df00 {
+		status = "disabled";
+	};
+
+	qcom,leds@e000 {
+		status = "disabled";
+	};
+
+	qcom,leds@e100 {
+		status = "disabled";
+	};
+};
