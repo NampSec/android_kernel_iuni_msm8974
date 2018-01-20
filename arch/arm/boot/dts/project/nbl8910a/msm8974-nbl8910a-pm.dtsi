@@ -77,6 +77,7 @@
 	qcom,charging-enabled;//qcom,charging-disabled;
 //Gionee wudp 2013-08-07 modify for enable pm8941 chg end
 	qcom,battery-data = <&mtp_batterydata>;
+	otg-parent-supply = <&pm8941_boost>;
 
 	qcom,chgr@1000 {
 		status = "ok";
