@@ -749,7 +749,6 @@ qpnp_chg_is_batfet_closed(struct qpnp_chg_chip *chip)
 	return (batfet_closed_rt_sts & BAT_FET_ON_IRQ) ? 1 : 0;
 }
 
-#define USB_VALID_BIT	BIT(7)
 static int
 qpnp_chg_is_usb_chg_plugged_in(struct qpnp_chg_chip *chip)
 {
@@ -757,11 +756,11 @@ qpnp_chg_is_usb_chg_plugged_in(struct qpnp_chg_chip *chip)
 	int rc;
 
 	rc = qpnp_chg_read(chip, &usb_chgpth_rt_sts,
-				 chip->usb_chgpth_base + CHGR_STATUS, 1);
+				 INT_RT_STS(chip->usb_chgpth_base), 1);
 
 	if (rc) {
 		pr_err("spmi read failed: addr=%03X, rc=%d\n",
-				chip->usb_chgpth_base + CHGR_STATUS, rc);
+				INT_RT_STS(chip->usb_chgpth_base), rc);
 		return rc;
 	}
 	pr_debug("chgr usb sts 0x%x\n", usb_chgpth_rt_sts);
@@ -775,7 +774,7 @@ qpnp_is_dc_higher_prio(struct qpnp_chg_chip *chip)
 	int rc;
 	u8 usb_ctl;
 
-	if (chip->type != SMBB)
+	if (!chip->type == SMBB)
 		return false;
 
 	rc = qpnp_chg_read(chip, &usb_ctl,
@@ -1780,10 +1779,6 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 				}
 			}
 
-			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
-				chip->delta_vddmax_mv = 0;
-				qpnp_chg_set_appropriate_vddmax(chip);
-			}
 			schedule_delayed_work(&chip->eoc_work,
 				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 			schedule_work(&chip->soc_check_work);
@@ -1961,14 +1956,8 @@ qpnp_chg_dc_dcin_valid_irq_handler(int irq, void *_chip)
 			qpnp_chg_force_run_on_batt(chip, !dc_present ? 1 : 0);
 		if (!dc_present && (!qpnp_chg_is_usb_chg_plugged_in(chip) ||
 					qpnp_chg_is_otg_en_set(chip))) {
-			chip->delta_vddmax_mv = 0;
-			qpnp_chg_set_appropriate_vddmax(chip);
 			chip->chg_done = false;
 		} else {
-			if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {
-				chip->delta_vddmax_mv = 0;
-				qpnp_chg_set_appropriate_vddmax(chip);
-			}
 			schedule_delayed_work(&chip->eoc_work,
 				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 			schedule_work(&chip->soc_check_work);
@@ -2335,7 +2324,6 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_POWER_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_TRIM,
@@ -2629,17 +2617,6 @@ get_prop_charge_full(struct qpnp_chg_chip *chip)
 	return 0;
 }
 
-static bool needs_soc_refresh(struct qpnp_chg_chip *chip, ktime_t now)
-{
-	if (!chip->last_soc_chk.tv64 ||
-		(ktime_to_ms(ktime_sub(now, chip->last_soc_chk)) >
-		(BATT_HEARTBEAT_INTERVAL - MSEC_PER_SEC)))
-		return true;
-
-	return false;
-}
-
-#define DEFAULT_CAPACITY	50
 static int
 get_prop_capacity(struct qpnp_chg_chip *chip)
 {
@@ -2900,14 +2877,6 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = get_prop_capacity(chip);
-		break;
-	case POWER_SUPPLY_PROP_POWER_NOW:
-		{
-			int mA, mV;
-			mA = get_prop_current_now(chip);
-			mV = get_prop_battery_voltage_now(chip) / 1000;
-			val->intval = (mA * mV) / 1000;
-		}
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = get_prop_current_now(chip);
@@ -5770,9 +5739,6 @@ static int qpnp_chg_resume(struct device *dev)
 #endif
 //Gionee yezg 2014-3-13 modify for pmic tm_low_interrupt end
 	}
-
-	if (needs_soc_refresh(chip, ktime_get_boottime()))
-		power_supply_changed(&chip->batt_psy);
 
 	return rc;
 }
