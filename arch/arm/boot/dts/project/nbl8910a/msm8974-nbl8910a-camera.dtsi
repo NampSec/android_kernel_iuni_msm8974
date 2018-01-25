@@ -10,20 +10,16 @@
  * GNU General Public License for more details.
  */
 
-&pm8941_lsid1 {
-	qcom,leds@d300 {
-		pm8941_flash0: qcom,flash_0 {
-			qcom,current = <450>; //625
-		};
+&pm8941_flash0 {
+	qcom,current = <450>; //625
+};
 
-		pm8941_flash1: qcom,flash_1 {
-			qcom,current = <450>; //625
-		};
+&pm8941_flash1 {
+	qcom,current = <450>; //625
+};
 
-		pm8941_torch: qcom,flash_torch {
-			qcom,current = <150>; //200
-		};
-	};
+&pm8941_torch {
+	qcom,current = <150>; //200
 };
 
 &soc {
@@ -37,7 +33,6 @@
 };
 
 &cci {
-
 	actuator0: qcom,actuator@18 {
 		cell-index = <0>;
 		reg = <0x18>;

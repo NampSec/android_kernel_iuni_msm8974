@@ -52,9 +52,7 @@
 			qcom,lut-flags = <3>; 
 		};
 	};
-};
 
-&pm8941_lsid1 {
 	qcom,leds@d800 {
 		status = "disabled";
 		/delete-node/ qcom,wled_0;

@@ -10,6 +10,56 @@
  * GNU General Public License for more details.
  */
 
+/ {
+	mtp_batterydata: qcom,battery-data {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
+
+//Gionee liujiang 2014-05-21 add for LG batterydata start
+		/include/ "batterydata/batterydata-XWD-LG-2900mah.dtsi"
+		/include/ "batterydata/batterydata-DS-LG-2900mah.dtsi"
+//Gionee liujiang 2014-05-21 add for LG batterydata end
+	};
+};
+
+&pm8941_chg {
+	status = "ok";
+//Gionee wudp 2013-08-07 modify for enable pm8941 chg begin
+	qcom,charging-enabled;//qcom,charging-disabled;
+//Gionee wudp 2013-08-07 modify for enable pm8941 chg end
+	qcom,battery-data = <&mtp_batterydata>;
+	qcom,ovp-monitor-en;
+	otg-parent-supply = <&pm8941_boost>;
+
+	qcom,chgr@1000 {
+		status = "ok";
+	};
+
+	qcom,buck@1100 {
+		status = "ok";
+	};
+
+	qcom,bat-if@1200 {
+		status = "ok";
+	};
+
+	qcom,usb-chgpth@1300 {
+		status = "ok";
+	};
+
+	qcom,dc-chgpth@1400 {
+		status = "ok";
+	};
+
+	qcom,boost@1500 {
+		status = "ok";
+	};
+
+	qcom,chg-misc@1600 {
+		status = "ok";
+	};
+};
+
 &pm8941_lsid0 {
 
 	qcom,power-on@800 {
@@ -52,58 +102,8 @@
 	qcom,pm8941_rtc {
 		qcom,qpnp-rtc-alarm-pwrup = <1>; //0
 	};
-};
-
-&pm8941_lsid0 {
 
 	pm8941_clkdiv3: clkdiv@5d00 {
 		qcom,cxo-div = <1>; 		
-	};
-};
-
-/ {
-	mtp_batterydata: qcom,battery-data {
-		qcom,rpull-up-kohm = <100>;
-		qcom,vref-batt-therm = <1800000>;
-
-		/include/ "batterydata/batterydata-XWD-LG-2900mah.dtsi"
-		/include/ "batterydata/batterydata-DS-LG-2900mah.dtsi"
-	};
-};
-
-&pm8941_chg {
-	status = "ok";
-//Gionee wudp 2013-08-07 modify for enable pm8941 chg begin
-	qcom,charging-enabled;//qcom,charging-disabled;
-//Gionee wudp 2013-08-07 modify for enable pm8941 chg end
-	qcom,battery-data = <&mtp_batterydata>;
-	otg-parent-supply = <&pm8941_boost>;
-
-	qcom,chgr@1000 {
-		status = "ok";
-	};
-
-	qcom,buck@1100 {
-		status = "ok";
-	};
-
-	qcom,bat-if@1200 {
-		status = "ok";
-	};
-
-	qcom,usb-chgpth@1300 {
-		status = "ok";
-	};
-
-	qcom,dc-chgpth@1400 {
-		status = "ok";
-	};
-
-	qcom,boost@1500 {
-		status = "ok";
-	};
-
-	qcom,chg-misc@1600 {
-		status = "ok";
 	};
 };

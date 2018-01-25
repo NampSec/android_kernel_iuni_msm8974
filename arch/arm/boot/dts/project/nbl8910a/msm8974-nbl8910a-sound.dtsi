@@ -11,10 +11,6 @@
  */
 
 &soc {
-
-};
-
-&soc {
 	sound {
 		qcom,model = "msm8974-taiko-mtp-snd-card";
 
@@ -23,15 +19,15 @@
 	};
 
 slim_msm:
-    slim@fe12f000 {
-        taiko_codec {
-            qcom,cdc-pa-gpio = <&pm8941_gpios 6 0>;
-            qcom,cdc-micbias-cfilt3-mv = <1800>; //<2700>;
-            qcom,cdc-micbias3-cfilt-sel = <0x0>; //<0x2>;
-            qcom,cdc-micbias4-cfilt-sel = <0x0>; //<0x2>;
-            qcom,cdc-dmic-sample-rate = <2400000>; //<4800000>;
-        };
-    };
+	slim@fe12f000 {
+		taiko_codec {
+			qcom,cdc-pa-gpio = <&pm8941_gpios 6 0>;
+			qcom,cdc-micbias-cfilt3-mv = <1800>; //<2700>;
+			qcom,cdc-micbias3-cfilt-sel = <0x0>; //<0x2>;
+			qcom,cdc-micbias4-cfilt-sel = <0x0>; //<0x2>;
+			qcom,cdc-dmic-sample-rate = <2400000>; //<4800000>;
+		};
+	};
 };
 
 &slim_msm {

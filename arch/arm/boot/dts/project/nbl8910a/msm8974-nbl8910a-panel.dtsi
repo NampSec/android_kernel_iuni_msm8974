@@ -33,64 +33,58 @@
 };
 
 &soc {
-	qcom,mdss_dsi@fd922800 {
+	mdss_dsi0: qcom,mdss_dsi@fd922800 {
 		qcom,dsi-pref-prim-pan = <&dsi_dual_sharp_r63419_cmd_0>;
 		status = "ok";
-	};
-	qcom,mdss_dsi@fd922e00 {
-		qcom,dsi-pref-prim-pan = <&dsi_dual_sharp_r63419_cmd_1>;
-		status = "ok";
-	};
-};
-
-&soc {
-	mdss_dsi0: qcom,mdss_dsi@fd922800 {
 		qcom,tps-enable-gpio = <&msmgpio 46 0>;
 		qcom,iovcc-enable-gpio = <&msmgpio 53 0>;
+		/*qcom,panel-supply-entries {
+			/delete-property/ qcom,panel-supply-entry@0;
+		};*/
 	};
 
 	mdss_dsi1: qcom,mdss_dsi@fd922e00 {
-		/delete-property/ vdd-supply;
-		/delete-property/ vddio-supply;
-		/delete-property/ vdda-supply;
-		/delete-node/ qcom,platform-supply-entry1;
-		/delete-node/ qcom,platform-supply-entry2;
-		/delete-node/ qcom,platform-supply-entry3;
-	};
-
-	qcom,mdss_mdp@fd900000 {
-		qcom,mdss-pref-prim-intf = "dsi";
-		batfet-supply = <&pm8941_chg_batif>;
-	};
-
-	qcom,hdmi_tx@fd922100 {
-		status = "disabled";
+		qcom,dsi-pref-prim-pan = <&dsi_dual_sharp_r63419_cmd_1>;
+		status = "ok";
+		qcom,tps-enable-gpio = <&msmgpio 46 0>;
+		qcom,iovcc-enable-gpio = <&msmgpio 53 0>;
+		/*qcom,panel-supply-entries {
+			/delete-property/ qcom,panel-supply-entry@0;
+		};*/
 	};
 };
 
+&mdss_hdmi_tx {
+	status = "disabled";
+};
+
+&mdss_mdp {
+	qcom,mdss-pref-prim-intf = "dsi";
+	batfet-supply = <&pm8941_chg_batif>;
+};
 
 &dsi_dual_sharp_r63419_cmd_0 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_sharp_r63419_cmd_1 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_sharp_r63419_video_0 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_sharp_r63419_video_1 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 
 &dsi_dual_truly_r63419_cmd_0 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_truly_r63419_cmd_1 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_truly_r63419_video_0 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };
 &dsi_dual_truly_r63419_video_1 {
-       qcom,cont-splash-enabled;
+	qcom,cont-splash-enabled;
 };

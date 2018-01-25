@@ -14,13 +14,14 @@
 /include/ "msm8974-nbl8910a-leds.dtsi"
 /include/ "msm8974-nbl8910a-camera.dtsi"
 /include/ "msm8974-nbl8910a-input.dtsi"
+/include/ "msm8974-nbl8910a-usb.dtsi"
 /include/ "msm8974-nbl8910a-misc.dtsi"
 /include/ "msm8974-nbl8910a-pm.dtsi"
 /include/ "msm8974-nbl8910a-regulator.dtsi"
-/include/ "msm8974-nbl8910a-sound.dtsi"
-/include/ "msm8974-nbl8910a-usb.dtsi"
 /include/ "../../msm8974-clock.dtsi"
 /include/ "../../msm8974-regulator.dtsi"
+/include/ "msm8974-nbl8910a-sound.dtsi"
+
 
 / {
 	aliases {
@@ -28,9 +29,21 @@
 	};
 };
 
+&memory_hole {
+	qcom,memblock-remove = <0x05a00000 0x7800000  /* MSM8974pro allocation */
+				0x0fa00000 0x500000   /* MSM8974pro allocation */
+				0x05900000 0x100000>; /* OEM data allocation */
+};
+
 &soc {
 	serial@f991e000 {
 		status = "ok";
+	};
+
+	oem_data_sharedmem {
+		compatible = "qcom,sharedmem-uio";
+		reg = <0x5900000 0x100000>;
+		reg-names = "oem_data";
 	};
 };
 
@@ -97,49 +110,24 @@
 	status = "ok";
 };
 
-&spi_epm {
-	epm-adc@0 {
-		compatible = "cy,epm-adc-cy8c5568lti-114";
-		reg = <0>;
-		interrupt-parent = <&msmgpio>;
-		spi-max-frequency = <960000>;
-		qcom,channels = <31>;
-		qcom,gain = <100 100 100 50 100 100 1 100 1 50
-				1 100 1 100 50 50 50 50 50 50
-				100 50 100 50 50 50 50 50 50 50
-				50>;
-		qcom,rsense = <2 2 2 200 20 2 1 2 1 30
-				1 10 1 30 50 30 500 30 100 30
-				100 500 20 200 1000 20 1000 1000 70 200
-				50>;
-		qcom,channel-type = <0x1540>;
-	};
+/* Drive strength recommendations for clock line from hardware team is 10 mA.
+ * But since the driver has been been using the below values from the start
+ * without any problems, continue to use those.
+ */
+&sdcc1 {
+	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
+};
+
+&sdcc2 {
+	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
+};
+
+&sdhc_2 {
+	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
 };
 
 &uart7 {
 	status = "ok";
-};
-
-&pm8941_gpios {
-	gpio@c500 { /* GPIO 6 */
-		qcom,mode = <1>;		/* QPNP_PIN_MODE_DIG_OUT */
-		qcom,output-type = <0>;		/* QPNP_PIN_OUT_BUF_CMOS */
-		qcom,pull = <5>;		/* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <2>;		/* QPNP_PIN_VIN2 */
-		qcom,out-strength = <1>;	/* QPNP_PIN_OUT_STRENGTH_LOW */
-		qcom,src-sel = <0>;		/* QPNP_PIN_SEL_FUNC_CONSTANT */
-		qcom,master-en = <1>;
-	};
-
-	gpio@d100 { /* GPIO 18 */
-		qcom,mode = <1>; 
-		qcom,output-type = <0>; 
-		qcom,pull = <5>; 
-		qcom,vin-sel = <2>; 
-		qcom,out-strength = <3>; 
-		qcom,src-sel = <2>; 
-		qcom,master-en = <1>;
-	};
 };
 
 &pm8941_gpios {
@@ -388,7 +376,6 @@
 };
 
 &pm8941_mpps {
-
 	mpp@a000 { /* MPP 1 */
 		status = "disabled";
 	};
@@ -431,7 +418,30 @@
 	};
 };
 
+&spi_epm {
+	epm-adc@0 {
+		compatible = "cy,epm-adc-cy8c5568lti-114";
+		reg = <0>;
+		interrupt-parent = <&msmgpio>;
+		spi-max-frequency = <960000>;
+		qcom,channels = <31>;
+		qcom,gain = <100 100 100 50 100 100 1 100 1 50
+				1 100 1 100 50 50 50 50 50 50
+				100 50 100 50 50 50 50 50 50 50
+				50>;
+		qcom,rsense = <2 2 2 200 20 2 1 2 1 30
+				1 10 1 30 50 30 500 30 100 30
+				100 500 20 200 1000 20 1000 1000 70 200
+				50>;
+		qcom,channel-type = <0x1540>;
+	};
+};
+
 &spi_0 {
+	status = "disabled";
+};
+
+&spi_7 {
 	status = "disabled";
 };
 

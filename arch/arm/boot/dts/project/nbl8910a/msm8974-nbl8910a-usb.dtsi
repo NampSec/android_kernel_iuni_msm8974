@@ -17,15 +17,3 @@
 &usb_otg {
 	qcom,hsusb-otg-otg-control = <2>;
 };
-
-&sdcc1 {
-	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
-};
-
-&sdcc2 {
-	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
-};
-
-&sdhc_2 {
-	qcom,pad-drv-on = <0x7 0x4 0x4>; /* 16mA, 10mA, 10mA */
-};
