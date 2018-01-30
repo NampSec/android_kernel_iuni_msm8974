@@ -1,0 +1,40 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	sound {
+		qcom,model = "msm8974-taiko-mtp-snd-card";
+
+		qcom,cdc-micbias2-headset-only;
+		qcom,mbhc-audio-jack-type = "6-pole-jack";
+	};
+
+slim_msm:
+	slim@fe12f000 {
+		taiko_codec {
+			qcom,cdc-pa-gpio = <&pm8941_gpios 6 0>;
+			qcom,cdc-micbias-cfilt3-mv = <1800>; //<2700>;
+			qcom,cdc-micbias3-cfilt-sel = <0x0>; //<0x2>;
+			qcom,cdc-micbias4-cfilt-sel = <0x0>; //<0x2>;
+			qcom,cdc-dmic-sample-rate = <2400000>; //<4800000>;
+		};
+	};
+};
+
+&slim_msm {
+	taiko_codec {
+        qcom,cdc-micbias1-ext-cap;
+		/delete-property/ qcom,cdc-micbias2-ext-cap;
+		qcom,cdc-micbias3-ext-cap;
+		qcom,cdc-micbias4-ext-cap;
+	};
+};

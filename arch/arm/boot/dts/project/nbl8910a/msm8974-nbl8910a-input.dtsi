@@ -1,0 +1,93 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	gpio_keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+
+		camera_snapshot {
+			label = "camera_snapshot";
+			gpios = <&pm8941_gpios 3 0x1>;
+			linux,input-type = <1>;
+			linux,code = <0x2fe>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+
+		camera_focus {
+			label = "camera_focus";
+			gpios = <&pm8941_gpios 4 0x1>;
+			linux,input-type = <1>;
+			linux,code = <0x210>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+
+		vol_up {
+			label = "volume_up";
+			gpios = <&pm8941_gpios 5 0x1>;
+			linux,input-type = <1>;
+			linux,code = <115>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+	};
+
+	hall-keys {
+		interrupt-parent = <&msmgpio>;
+		interrupts = <54 0x2>;
+		vdd-supply = <&pm8941_s3>;
+		compatible = "liujiang,hall_key";
+		label = "key";
+		hall,irq-gpio = <&msmgpio 54 0x00>;
+		hall,irq-flags = <0x2>;
+		hall,regulator {
+			regulator-name = "vdd";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-max-microamp = <9360>;
+		};
+	};
+
+	i2c@f9924000 {
+		synaptics@20 {
+			compatible = "synaptics,dsx";
+			reg = <0x20>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <61 0x2>;
+	        	vdd-supply = <&pm8941_l22>;
+		        vcc_i2c-supply = <&pm8941_lvs1>;
+
+		        synaptics,reset-gpio = <&msmgpio 60 0x00>;
+			synaptics,reset-delay-ms = <100>;
+			synaptics,reset-on-state = <1>;
+			synaptics,reset-active-ms = <20>;
+			synaptics,irq-gpio = <&msmgpio 61 0x00>;
+			synaptics,irq-flags = <0x2>;
+			synaptics,power-gpio = <&msmgpio 85 0x00>;
+			synaptics,cap-button-map = <139 172 158>; 
+			synaptics,power-on-state = <1>;
+			synaptics,power-delay-ms = <160>;
+			synaptics,max-y-for-2d = <2560>; /* remove if no virtual buttons */
+			synaptics,fw-image-name1 = "PR1782558-s3508r_OW_000000D2.img";
+			synaptics,fw-image-name2 = "PR1782558-s3508r_TW_000000BF.img";
+			synaptics,fw-image-name3 = "PR1782558-s3508r_TB_000000BF.img";
+			synaptics,fw-image-name4 = "PR1782558-s3508r_TW_000000BF.img";
+			synaptics,fw-image-name5 = "PR1782558-s3508r_OB_000000D2.img";
+			synaptics,fw-image-name6 = "PR1782558-s3508r_OW_000000D2.img";
+			synaptics,fw-image-name7 = "PR1782558-s3508r_OG_000000D2.img";
+			synaptics,fw-image-name8 = "PR1782558-s3508r_TG_000000BF.img";
+			synaptics,vir-button-codes = <102 100 900 100 60 158 300 900 100 60>;
+		};
+	};
+};
