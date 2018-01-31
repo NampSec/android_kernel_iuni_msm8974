@@ -680,19 +680,6 @@ static int cpufreq_stats_create_table_cpu(unsigned int cpu)
 
 	ret = cpufreq_stats_create_table(policy, table, count);
 
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		count++;
-	}
-
-	if (!per_cpu(all_cpufreq_stats, cpu))
-		cpufreq_allstats_create(cpu, table, count);
-
-	if (!per_cpu(cpufreq_power_stats, cpu))
-		cpufreq_powerstats_create(cpu, table, count);
-
-	ret = cpufreq_stats_create_table(policy, table, count);
-
 out:
 	cpufreq_cpu_put(policy);
 	return ret;
