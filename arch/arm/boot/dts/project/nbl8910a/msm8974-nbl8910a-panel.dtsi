@@ -38,9 +38,10 @@
 		status = "ok";
 		qcom,tps-enable-gpio = <&msmgpio 46 0>;
 		qcom,iovcc-enable-gpio = <&msmgpio 53 0>;
-		/*qcom,panel-supply-entries {
-			/delete-property/ qcom,panel-supply-entry@0;
-		};*/
+		/delete-property/ vdd-supply;
+		qcom,panel-supply-entries {
+			/delete-node/ qcom,panel-supply-entry@0;
+		};
 	};
 
 	mdss_dsi1: qcom,mdss_dsi@fd922e00 {
@@ -48,9 +49,10 @@
 		status = "ok";
 		qcom,tps-enable-gpio = <&msmgpio 46 0>;
 		qcom,iovcc-enable-gpio = <&msmgpio 53 0>;
-		/*qcom,panel-supply-entries {
-			/delete-property/ qcom,panel-supply-entry@0;
-		};*/
+		/delete-property/ vdd-supply;
+		qcom,panel-supply-entries {
+			/delete-node/ qcom,panel-supply-entry@0;
+		};
 	};
 };
 
