@@ -13,6 +13,7 @@
 &mdss_mdp {
 	dsi_dual_sharp_r63419_video_0: qcom,mdss_dsi_sharp_r63419_wqhd_dualmipi0_video{
 		qcom,mdss-dsi-panel-name = "sharp Dual 0 video mode dsi panel";
+		status = "ok";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
 		qcom,mdss-dsi-panel-destination = "display_1";
@@ -101,5 +102,6 @@
 		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
 					05 01 00 00 78 00 02 10 00];
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,cont-splash-enabled;
 	};
 };
